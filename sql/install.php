@@ -25,13 +25,11 @@
 */
 $sql = array();
 
-$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync` (
-    `id_blackfiresync` int(11) NOT NULL AUTO_INCREMENT,
-    PRIMARY KEY  (`id_blackfiresync`)
+$sql[_DB_PREFIX_ . 'blackfiresync'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `cookie` char(32) NOT NULL,
+    `expires` DATETIME NOT NULL,
+    PRIMARY KEY  (`id`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
-foreach ($sql as $query) {
-    if (Db::getInstance()->execute($query) == false) {
-        return false;
-    }
-}
+return $sql;

@@ -68,14 +68,36 @@ class Blackfiresync extends Module
      */
     public function install()
     {
-        return parent::install() &&
+        return $this->installDb() &&
+            parent::install() &&
             $this->registerHook('header') &&
             $this->registerHook('backOfficeHeader');
     }
 
     public function uninstall()
     {
-        return parent::uninstall();
+        return $this->uninstallDb() && parent::uninstall();
+    }
+
+    public function installDb()
+    {
+        $return = true;
+        $sql = include __DIR__ . '/sql/install.php';
+        foreach ($sql as $s) {
+            $return &= Db::getInstance()->execute($s);
+        }
+
+        return $return;
+    }
+
+    public function uninstallDb()
+    {
+        $sql = include __DIR__ . '/sql/install.php';
+        foreach ($sql as $name => $v) {
+            Db::getInstance()->execute('DROP TABLE ' . $name);
+        }
+
+        return true;
     }
 
     /**

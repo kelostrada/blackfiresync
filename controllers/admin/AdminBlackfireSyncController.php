@@ -1,5 +1,7 @@
 <?php
 
+use \Blackfire\HttpService;
+
 class AdminBlackfireSyncController extends ModuleAdminController 
 {
     public function __construct() 
@@ -11,12 +13,17 @@ class AdminBlackfireSyncController extends ModuleAdminController
     {
         parent::init();
         $this->bootstrap = true;
+
+        $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
+        $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
+
+        $this->blackfireService = new HttpService($user, $password);
     }
 
     public function initContent()
     {
         $assigns = array(
-            'test' => [1,2,3]
+            'blackfireService' => $this->blackfireService
         );
 
         parent::initContent();
