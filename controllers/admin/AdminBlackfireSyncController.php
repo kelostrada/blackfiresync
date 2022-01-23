@@ -4,6 +4,9 @@ use \Blackfire\HttpService;
 
 class AdminBlackfireSyncController extends ModuleAdminController 
 {
+    protected $categoryID = false;
+    protected $subcategoryID = false;
+
     public function __construct() 
     {
         parent::__construct();
@@ -13,6 +16,8 @@ class AdminBlackfireSyncController extends ModuleAdminController
     {
         parent::init();
         $this->bootstrap = true;
+        $this->categoryID = Tools::getValue("category_id");
+        $this->subcategoryID = Tools::getValue("subcategory_id");
 
         $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
         $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
@@ -23,6 +28,8 @@ class AdminBlackfireSyncController extends ModuleAdminController
     public function initContent()
     {
         $assigns = array(
+            'categoryID' => $this->categoryID,
+            'subcategoryID' => $this->subcategoryID,
             'account' => $this->blackfireService->getAccountInfo(),
             'categories' => $this->blackfireService->getCategories()
         );

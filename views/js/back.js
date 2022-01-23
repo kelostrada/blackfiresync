@@ -25,3 +25,13 @@
 * Don't forget to prefix your containers with your own identifier
 * to avoid any conflicts with others containers.
 */
+
+$(document).ready(function() {
+
+    $('#bf-categories-form').on('change', () => {
+        $('#bf-categories-form').submit();
+    });
+
+
+
+});

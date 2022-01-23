@@ -136,7 +136,7 @@ class HttpService
                 ];
             }
 
-            $categories[] = $category;
+            $categories[$category["id"]] = $category;
         }
 
         return $categories;
