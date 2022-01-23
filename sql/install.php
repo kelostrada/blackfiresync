@@ -26,10 +26,17 @@
 $sql = array();
 
 $sql[_DB_PREFIX_ . 'blackfiresync'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync` (
-    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
     `cookie` char(32) NOT NULL,
-    `expires` DATETIME NOT NULL,
+    `expires` BIGINT(20) UNSIGNED NOT NULL,
     PRIMARY KEY  (`id`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+$sql[_DB_PREFIX_ . 'blackfiresync_products'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync_products` (
+    `id` int(10) UNSIGNED NOT NULL,
+    `id_shop_product` int(10) UNSIGNED NOT NULL,
+    PRIMARY KEY  (`id`),
+    FOREIGN KEY (`id_shop_product`) REFERENCES ' . _DB_PREFIX_ . 'product(`id_product`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 return $sql;

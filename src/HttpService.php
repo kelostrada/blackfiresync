@@ -66,12 +66,10 @@ class HttpService
 
         if (!strpos($body, "Logout"))
         {
-            echo "Not logged in";
+            dump("Not logged in");
         }
         else
         {
-            echo "Success!";
-
             Db::getInstance()->insert("blackfiresync", [
                 "cookie" => $cookie["Value"], 
                 "expires" => $cookie["Expires"]
@@ -172,8 +170,6 @@ class HttpService
 
             $products[] = $product;
         }
-
-        // dump($products);
 
         return $products;
     }
