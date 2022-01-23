@@ -23,7 +23,8 @@ class AdminBlackfireSyncController extends ModuleAdminController
     public function initContent()
     {
         $assigns = array(
-            'account' => $this->blackfireService->getAccountInfo()
+            'account' => $this->blackfireService->getAccountInfo(),
+            'categories' => $this->blackfireService->getCategories()
         );
 
         parent::initContent();

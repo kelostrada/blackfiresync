@@ -94,4 +94,51 @@ class HttpService
             "id" => trim($accountData[0]->getChildren()[1]->text())
         ];
     }
+
+    public function getCategories()
+    {
+        // use contact page, as home page loads really slowly
+        $response = $this->client->get('https://www.blackfire.eu/info.php?txt=contact', [
+            'cookies' => $this->cookieJar
+        ]);
+
+        $body = (string) $response->getBody();
+
+        $dom = new Dom;
+        $dom->loadStr($body);
+
+        $categoriesDom = $dom->find('#ctabs li a');
+
+        $categories = [];
+
+        foreach($categoriesDom as $c)
+        {
+            $href = $c->getTag()->getAttribute("href")->getValue();
+
+            $category = [
+                "id" => substr($href, 9),
+                "name" => $c->text(),
+                "link" => $href,
+                "subcategories" => []
+            ];
+
+            $subcategories = $dom->find($category['link'] . ' li a');
+
+            foreach($subcategories as $s)
+            {
+                $href = $s->getTag()->getAttribute("href")->getValue();
+
+                if (strpos($href, "list.php?subcategory=") === false) continue;
+
+                $category["subcategories"][] = [
+                    "name" => $s->text(),
+                    "id" => explode("=", $href)[1]
+                ];
+            }
+
+            $categories[] = $category;
+        }
+
+        return $categories;
+    }
 }
