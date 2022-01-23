@@ -6,7 +6,7 @@
     <div class="panel-body" id="blackfire-sync">
         <div class="container">
 
-            {$test}
+            <strong>Account ID:</strong> {$account["id"]}
 
         </div>
     </div>
