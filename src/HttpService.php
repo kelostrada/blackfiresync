@@ -6,6 +6,8 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use \Db;
 use PHPHtmlParser\Dom;
+use League\Csv\Reader;
+use League\Csv\Statement;
 
 class HttpService
 {
@@ -140,5 +142,39 @@ class HttpService
         }
 
         return $categories;
+    }
+
+    public function getProducts($subcategoryID)
+    {
+        if (!$subcategoryID) return [];
+
+        $response = $this->client->get('https://www.blackfire.eu/get_csv.php?subcategory=' . $subcategoryID, [
+            'cookies' => $this->cookieJar
+        ]);
+
+        $body = (string) $response->getBody();
+
+        $csv = Reader::createFromString($body);
+        $csv->setHeaderOffset(0);
+        $csv->setDelimiter(';');
+
+        $records = Statement::create()->process($csv);
+
+        $products = [];
+
+        foreach($records as $record)
+        {
+            $product = $record;
+
+            $startPos = strlen("https://www.blackfire.eu/img/");
+            $length = strpos($record["Image URL"], "_") - $startPos;
+            $product["ID"] = substr($record["Image URL"], $startPos, $length);
+
+            $products[] = $product;
+        }
+
+        // dump($products);
+
+        return $products;
     }
 }

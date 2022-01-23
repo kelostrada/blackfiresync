@@ -31,7 +31,8 @@ class AdminBlackfireSyncController extends ModuleAdminController
             'categoryID' => $this->categoryID,
             'subcategoryID' => $this->subcategoryID,
             'account' => $this->blackfireService->getAccountInfo(),
-            'categories' => $this->blackfireService->getCategories()
+            'categories' => $this->blackfireService->getCategories(),
+            'products' => $this->blackfireService->getProducts($this->subcategoryID),
         );
 
         parent::initContent();
