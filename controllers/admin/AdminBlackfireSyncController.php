@@ -1,6 +1,6 @@
 <?php
 
-use \Blackfire\HttpService;
+use \Blackfire\BlackfireSyncService;
 
 class AdminBlackfireSyncController extends ModuleAdminController 
 {
@@ -22,7 +22,9 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
         $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
 
-        $this->blackfireService = new HttpService($user, $password);
+        BlackfireSyncService::login($user, $password);
+
+        if (Tools::getValue("id_shop_product")) $this->saveShopProduct();
     }
 
     public function initContent()
@@ -30,13 +32,21 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $assigns = array(
             'categoryID' => $this->categoryID,
             'subcategoryID' => $this->subcategoryID,
-            'account' => $this->blackfireService->getAccountInfo(),
-            'categories' => $this->blackfireService->getCategories(),
-            'products' => $this->blackfireService->getProducts($this->subcategoryID),
+            'account' => BlackfireSyncService::getAccountInfo(),
+            'categories' => BlackfireSyncService::getCategories(),
+            'products' => BlackfireSyncService::getProducts($this->subcategoryID),
         );
 
         parent::initContent();
         $this->context->smarty->assign($assigns);
         $this->setTemplate('blackfire_sync.tpl');
+    }
+
+    protected function saveShopProduct()
+    {
+        $id_shop_product = Tools::getValue("id_shop_product");
+        $id_product = Tools::getValue("id_product");
+
+        BlackfireSyncService::setShopProduct($id_product, $id_shop_product);
     }
 }

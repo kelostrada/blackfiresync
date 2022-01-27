@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
-	<name>blackfiresync</name>
-	<displayName><![CDATA[Blackfire Sync]]></displayName>
-	<version><![CDATA[1.4.1]]></version>
-	<description><![CDATA[Sync your products with Blackfire]]></description>
-	<author><![CDATA[Kelostrada]]></author>
-	<tab><![CDATA[administration]]></tab>
-	<is_configurable>1</is_configurable>
-	<need_instance>1</need_instance>
+    <name>blackfiresync</name>
+    <displayName><![CDATA[Blackfire Sync]]></displayName>
+    <version><![CDATA[1.0.0]]></version>
+    <description><![CDATA[Sync your products with Blackfire]]></description>
+    <author><![CDATA[Kelostrada]]></author>
+    <tab><![CDATA[administration]]></tab>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+	<limited_countries></limited_countries>
 </module>
