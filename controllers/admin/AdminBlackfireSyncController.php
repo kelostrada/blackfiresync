@@ -19,11 +19,6 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $this->categoryID = Tools::getValue("category_id");
         $this->subcategoryID = Tools::getValue("subcategory_id");
 
-        $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
-        $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
-
-        BlackfireSyncService::login($user, $password);
-
         if (Tools::getValue("id_shop_product")) $this->saveShopProduct();
     }
 

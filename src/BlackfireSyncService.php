@@ -3,19 +3,15 @@
 namespace Blackfire;
 
 use Blackfire\HttpService;
-use \Db;
+use \Configuration;
 use \Context;
+use \Db;
 use \Shop;
 
 class BlackfireSyncService
 {
     private Context $context;
     private HttpService $httpService;
-
-    public static function login($user, $password)
-    {
-        static::getInstance()->httpService = new HttpService($user, $password);
-    }
 
     public static function getAccountInfo()
     {
@@ -69,6 +65,11 @@ class BlackfireSyncService
     protected function __construct() 
     { 
         $this->context = Context::getContext();
+
+        $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
+        $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
+
+        $this->httpService = new HttpService($user, $password);
     }
 
     protected function __clone() { }
