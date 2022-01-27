@@ -32,6 +32,5 @@ $(document).ready(function() {
         $('#bf-categories-form').submit();
     });
 
-
-
+    $('#blackfire-sync-products-table').DataTable({paging: false});
 });

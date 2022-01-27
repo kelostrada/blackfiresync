@@ -35,10 +35,11 @@
 <div class="panel">
     <div class="panel-body" id="blackfire-sync-products">
         <div class="container">
-            <table class="table" id="blackfire-sync-products" data-link="{$link->getAdminLink( 'AdminBlackfireSync' )}">
+            <table class="table" id="blackfire-sync-products-table" data-link="{$link->getAdminLink( 'AdminBlackfireSync' )}">
                 <thead>
                     <tr>
                         <th>Image</th>
+                        <th>ID</th>
                         <th>Name</th>
                         <th>Reference</th>
                         <th>Price</th>
@@ -51,7 +52,10 @@
                     <tr>
                         <td><img height="80" src="{$product["Image URL"]}"></td>
                         <td>
-                            [{$product["ID"]}] {$product["Name"]} - {$product["EAN"]}
+                            {$product["ID"]}
+                        </td>
+                        <td>
+                            {$product["Name"]} - {$product["EAN"]}
                         </td>
                         <td>
                             {$product["Item-ID"]}
