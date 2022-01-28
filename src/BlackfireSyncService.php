@@ -35,9 +35,7 @@ class BlackfireSyncService
 
     public static function setShopProduct($id_product, $id_shop_product, $id_category)
     {
-        $res = DB::getInstance()->delete('blackfiresync_products', 'id = ' . $id_product);
-        DB::getInstance()->execute('INSERT INTO `'._DB_PREFIX_.'blackfiresync_products` 
-            (`id`, `id_shop_product`, `id_category`) VALUES ('.$id_product.','.$id_shop_product.','.$id_category.')');
+        return static::getInstance()->updateShopProduct($id_product, $id_shop_product, $id_category);
     }
 
     public static function syncProducts()
@@ -59,8 +57,6 @@ class BlackfireSyncService
             WHERE pl.`id_lang` = ' . $this->context->language->id . '
             AND bfsp.id IN ('.$bfproduct_ids.')');
 
-        // dump($shop_products);
-
         foreach($bfproducts as &$bfp)
         {
             $shop_product = current(array_filter($shop_products, fn($p) => $p['blackfire_id'] == $bfp['ID']));
@@ -70,11 +66,34 @@ class BlackfireSyncService
         return $bfproducts;
     }
 
+    public function updateShopProduct($id_product, $id_shop_product, $id_category)
+    {
+        $result_delete = DB::getInstance()->delete('blackfiresync_products', 'id = ' . $id_product);
+        $result_insert = DB::getInstance()->execute('INSERT INTO `'._DB_PREFIX_.'blackfiresync_products` 
+            (`id`, `id_shop_product`, `id_category`) VALUES ('.$id_product.','.$id_shop_product.','.$id_category.')');
+
+        if ($result_delete && $result_insert)
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | category: ' . $id_category, 1, null, 'Product', $id_shop_product);
+        }
+        else
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | category: ' . $id_category, 3, null, 'Product', $id_shop_product);
+            $this->logger->error('updateShopProduct() ' . $id_product . ' ' . $id_shop_product, [
+                'result_delete' => $result_delete,
+                'result_insert' => $result_insert,
+                'id_product' => $id_product,
+                'id_shop_product' => $id_shop_product,
+                'id_category' => $id_category
+            ]);
+        }
+    }
+
     public function sync()
     {
         $shop_products = DB::getInstance()->executeS('SELECT bfsp.*, p.*
-        FROM `'._DB_PREFIX_.'blackfiresync_products` bfsp
-        JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`');
+            FROM `'._DB_PREFIX_.'blackfiresync_products` bfsp
+            JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`');
 
         $categories = [];
 
