@@ -10,6 +10,8 @@ use \Shop;
 
 use Blackfire\HttpService;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
 
 class BlackfireSyncService
 {
@@ -91,8 +93,6 @@ class BlackfireSyncService
 
                 $product = current(array_filter($products, fn($p) => $p['ID'] == $sp['id']));
 
-                $log_message = '';
-
                 if ($product) {
                     $release_date = DateTime::createFromFormat('d.m.Y', $product['Release Date']);
                     $release_date = $release_date->format('Y-m-d');
@@ -117,13 +117,9 @@ class BlackfireSyncService
 
                         case 'for preorder':
                             if ($order_deadline > new DateTime("now"))
-                            {
                                 $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
-                            }
                             else
-                            {
                                 $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
-                            }
                             
                             break;
 
@@ -131,18 +127,20 @@ class BlackfireSyncService
                             $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
                             break;
                     }
-
-                    $log_message .= ' | release: ' . $product['Release Date'];
-                    $log_message .= ' | deadline: ' . $product['Order Deadline'];
-
                 } else {
                     $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
                 }
 
-                $log_message .= ' | oos: ' . ($update_data['out_of_stock'] == 0 ? 'deny' : ($update_data['out_of_stock'] == 1 ? 'allow' : 'default'));
-                $log_message .= ' | stock: ' . $product['Stock Level'];
+                $log_array = [
+                    'id' => $sp['id'],
+                    'id_shop_product' => $sp['id_shop_product'],
+                    'out_of_stock' => $update_data['out_of_stock'],
+                    'release' => $product['Release Date'],
+                    'deadline' => $product['Order Deadline'],
+                    'stock_level' => $product['Stock Level'],
+                ];
 
-                \PrestaShopLogger::addLog('BlackfireSyncService::sync ' . $log_message, 1, null, 'Product', $sp['id_shop_product']);
+                $this->logger->info('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
 
                 DB::getInstance()->update('product', $update_data, 'id_product = ' . $sp['id_shop_product']);
                 DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $sp['id_shop_product']);
@@ -155,6 +153,8 @@ class BlackfireSyncService
     protected function __construct() 
     { 
         $this->context = Context::getContext();
+        $this->logger = new Logger('blackfire_sync');
+        $this->logger->pushHandler(new StreamHandler(__DIR__ . '/../../../var/logs/blackfire_sync.log', Logger::INFO));
 
         $user = Configuration::get('BLACKFIRESYNC_ACCOUNT_EMAIL', null);
         $password = Configuration::get('BLACKFIRESYNC_ACCOUNT_PASSWORD', null);
