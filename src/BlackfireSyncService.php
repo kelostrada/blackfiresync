@@ -131,6 +131,9 @@ class BlackfireSyncService
                     $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
                 }
 
+                $product_result = DB::getInstance()->update('product', $update_data, 'id_product = ' . $sp['id_shop_product']);
+                $stock_result = DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $sp['id_shop_product']);
+
                 $log_array = [
                     'id' => $sp['id'],
                     'id_shop_product' => $sp['id_shop_product'],
@@ -138,12 +141,18 @@ class BlackfireSyncService
                     'release' => $product['Release Date'],
                     'deadline' => $product['Order Deadline'],
                     'stock_level' => $product['Stock Level'],
+                    'product_result' => $product_result,
+                    'stock_result' => $stock_result,
                 ];
 
-                $this->logger->info('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
-
-                DB::getInstance()->update('product', $update_data, 'id_product = ' . $sp['id_shop_product']);
-                DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $sp['id_shop_product']);
+                if ($product_result && $stock_result)
+                {
+                    $this->logger->info('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
+                }
+                else
+                {
+                    $this->logger->error('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
+                }
             }
         }
     }
