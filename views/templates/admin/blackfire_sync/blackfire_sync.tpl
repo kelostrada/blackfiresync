@@ -45,7 +45,7 @@
                         <th>Date</th>
                         <th>Price</th>
                         <th>Stock</th>
-                        <th></th>
+                        <th style="width: 200px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -88,12 +88,15 @@
                                 <input type="hidden" name="id_product" value="{$product['ID']}" />
 
                                 <div class="form-row">
-                                    <div class="col-md-8">
+                                    <div class="col-md-6">
                                         <input type="text" class="form-control update-shop-product" placeholder="Product ID" 
                                             value="{$product.shop_product.id_product}" name="id_shop_product" size="7" />
                                     </div>
                                     <div class="col-md-4">
-                                        <input type="submit" class="btn btn-primary" value="ok"/>
+                                        <input type="submit" class="btn btn-primary" name="action" value="ok"/>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="submit" class="btn btn-danger" name="action" value="x"/>
                                     </div>
                                 </div>
                             </form>

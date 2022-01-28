@@ -18,8 +18,10 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $this->bootstrap = true;
         $this->categoryID = Tools::getValue("category_id");
         $this->subcategoryID = Tools::getValue("subcategory_id");
+        $this->action = Tools::getValue("action");
 
-        if (Tools::getValue("id_shop_product")) $this->saveShopProduct();
+        if ($this->action == "ok") $this->saveShopProduct();
+        if ($this->action == "x") $this->deleteShopProduct();
     }
 
     public function initContent()
@@ -43,5 +45,12 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $id_product = Tools::getValue("id_product");
 
         BlackfireSyncService::setShopProduct($id_product, $id_shop_product, $this->subcategoryID);
+    }
+
+    protected function deleteShopProduct()
+    {
+        $id_product = Tools::getValue("id_product");
+
+        BlackfireSyncService::cleanShopProduct($id_product);
     }
 }

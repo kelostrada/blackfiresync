@@ -38,6 +38,11 @@ class BlackfireSyncService
         return static::getInstance()->updateShopProduct($id_product, $id_shop_product, $id_category);
     }
 
+    public static function cleanShopProduct($id_product)
+    {
+        return static::getInstance()->deleteShopProduct($id_product);
+    }
+
     public static function syncProducts()
     {
         return static::getInstance()->sync();
@@ -85,6 +90,24 @@ class BlackfireSyncService
                 'id_product' => $id_product,
                 'id_shop_product' => $id_shop_product,
                 'id_category' => $id_category
+            ]);
+        }
+    }
+
+    public function deleteShopProduct($id_product)
+    {
+        $result_delete = DB::getInstance()->delete('blackfiresync_products', 'id = ' . $id_product);
+
+        if ($result_delete)
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::deleteShopProduct | product: ' . $id_product, 1, null, 'Product');
+        }
+        else
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::deleteShopProduct | product: ' . $id_product, 3, null, 'Product');
+            $this->logger->error('deleteShopProduct() ' . $id_product, [
+                'result_delete' => $result_delete,
+                'id_product' => $id_product,
             ]);
         }
     }
