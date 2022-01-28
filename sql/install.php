@@ -35,6 +35,7 @@ $sql[_DB_PREFIX_ . 'blackfiresync'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFI
 $sql[_DB_PREFIX_ . 'blackfiresync_products'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync_products` (
     `id` int(10) UNSIGNED NOT NULL,
     `id_shop_product` int(10) UNSIGNED NOT NULL UNIQUE,
+    `id_category` int(10) UNSIGNED NOT NULL,
     PRIMARY KEY  (`id`),
     FOREIGN KEY (`id_shop_product`) REFERENCES ' . _DB_PREFIX_ . 'product(`id_product`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
