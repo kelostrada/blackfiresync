@@ -42,6 +42,7 @@
                         <th>ID</th>
                         <th>Name</th>
                         <th>Reference</th>
+                        <th>Date</th>
                         <th>Price</th>
                         <th>Stock</th>
                         <th></th>
@@ -59,6 +60,9 @@
                         </td>
                         <td>
                             {$product["Item-ID"]}
+                        </td>
+                        <td>
+                            {date_create_from_format("d.m.Y", $product["Release Date"])|date_format:"%Y-%m-%d"}
                         </td>
                         <td>
                             {$product["Your Price"]}

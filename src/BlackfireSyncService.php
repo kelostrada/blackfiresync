@@ -114,12 +114,14 @@ class BlackfireSyncService
 
                 if ($product) {
                     $release_date = DateTime::createFromFormat('d.m.Y', $product['Release Date']);
-                    $release_date = $release_date->format('Y-m-d');
+                    if ($release_date)
+                    {
+                        $release_date = $release_date->format('Y-m-d');
+                        $update_data['available_date'] = $release_date;
+                    }
 
                     $order_deadline = DateTime::createFromFormat('d.m.Y', $product['Order Deadline']);
                     
-                    $update_data['available_date'] = $release_date;
-
                     switch($product['Stock Level'])
                     {
                         case 'not on sale':
@@ -135,7 +137,7 @@ class BlackfireSyncService
                             break;
 
                         case 'for preorder':
-                            if ($order_deadline > new DateTime("now"))
+                            if (!$order_deadline || $order_deadline > new DateTime("now"))
                                 $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
                             else
                                 $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
@@ -153,6 +155,19 @@ class BlackfireSyncService
                 $product_result = DB::getInstance()->update('product', $update_data, 'id_product = ' . $sp['id_shop_product']);
                 $stock_result = DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $sp['id_shop_product']);
 
+                if (array_key_exists('available_date', $update_data))
+                {
+                    $product_details_result = [
+                        'product_shop' => DB::getInstance()->update('product_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
+                        'product_attribute' => DB::getInstance()->update('product_attribute', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
+                        'product_attribute_shop' => DB::getInstance()->update('product_attribute_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
+                    ];
+                }
+                else
+                {
+                    $product_details_result = null;
+                }
+
                 $log_array = [
                     'id' => $sp['id'],
                     'id_shop_product' => $sp['id_shop_product'],
@@ -161,6 +176,7 @@ class BlackfireSyncService
                     'deadline' => $product['Order Deadline'],
                     'stock_level' => $product['Stock Level'],
                     'product_result' => $product_result,
+                    'product_details_result' => $product_details_result,
                     'stock_result' => $stock_result,
                 ];
 
