@@ -71,15 +71,6 @@
                             {$product["Stock Level"]}
                         </td>
                         <td class="blackfire-sync-shop-product">
-                            {* <div class="blackfire-sync-shop-product-details">
-                                <a href="/asd">
-                                    <i class="blackfire-sync-shop-product-details-close material-icons">close</i>
-                                </a>
-                                <img class="blackfire-sync-shop-product-details-image" height="80" 
-                                    src="{$link->getImageLink($product.shop_product.link_rewrite, $product.shop_product.id_image, '')}">
-                                <span class="blackfire-sync-shop-product-name">{$product.shop_product.name}</span>
-                            </div> *}
-
                             <form class="form-inline" role="form" type="POST" action="">
                                 <input type="hidden" name="controller" value="AdminBlackfireSync" />
                                 <input type="hidden" name="token" value="{Tools::getAdminTokenLite('AdminBlackfireSync')}" />
@@ -87,17 +78,17 @@
                                 <input type="hidden" name="subcategory_id" value="{$subcategoryID}" />
                                 <input type="hidden" name="id_product" value="{$product['ID']}" />
 
-                                <div class="form-row">
-                                    <div class="col-md-6">
+                                <div class="blackfire-sync-shop-product-options">
                                         <input type="text" class="form-control update-shop-product" placeholder="Product ID" 
-                                            value="{$product.shop_product.id_product}" name="id_shop_product" size="7" />
-                                    </div>
-                                    <div class="col-md-4">
+                                            {if $product.shop_product}value="{$product.shop_product.id_product}"{/if} 
+                                            name="id_shop_product" size="7" />
                                         <input type="submit" class="btn btn-primary" name="action" value="ok"/>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="submit" class="btn btn-danger" name="action" value="x"/>
-                                    </div>
+                                        {if $product.shop_product}
+                                            <input type="submit" class="btn btn-danger" name="action" value="x"/>
+                                        {/if}
+                                        {if !$product.shop_product}
+                                            <input type="submit" class="btn btn-success" name="action" value="new"/>
+                                        {/if}
                                 </div>
                             </form>
                         </td>

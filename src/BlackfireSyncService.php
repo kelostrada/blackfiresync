@@ -2,13 +2,19 @@
 
 namespace Blackfire;
 
-use \Configuration;
-use \Context;
-use \DateTime;
-use \Db;
-use \Shop;
+use Configuration;
+use Context;
+use DateTime;
+use Db;
+use Image;
+use Language;
+use Manufacturer;
+use Product;
+use Shop;
+use TaxRulesGroup;
 
 use Blackfire\HttpService;
+use Blackfire\ImageHelpers;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
@@ -43,6 +49,11 @@ class BlackfireSyncService
         return static::getInstance()->deleteShopProduct($id_product);
     }
 
+    public static function createShopProduct($id_product, $id_category)
+    {
+        return static::getInstance()->newShopProduct($id_product, $id_category);
+    }
+
     public static function syncProducts()
     {
         return static::getInstance()->sync();
@@ -54,13 +65,19 @@ class BlackfireSyncService
         $bfproduct_ids = array_map(function($bfp) { return $bfp['ID']; }, $bfproducts);
         $bfproduct_ids = implode(',', $bfproduct_ids);
 
-        $shop_products = DB::getInstance()->executeS('SELECT bfsp.id as blackfire_id, p.id_product, pl.name, pl.link_rewrite, img.id_image
+        $query = 'SELECT bfsp.id as blackfire_id, p.id_product, pl.name, pl.link_rewrite, img.id_image
             FROM `'._DB_PREFIX_.'blackfiresync_products` bfsp
             JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`
             LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . Shop::addSqlRestrictionOnLang('pl') . ')
             LEFT JOIN `' . _DB_PREFIX_ . 'image_shop` img ON img.`id_product` = p.`id_product` AND img.cover=1 AND img.id_shop=' . (int) $this->context->shop->id . '
-            WHERE pl.`id_lang` = ' . $this->context->language->id . '
-            AND bfsp.id IN ('.$bfproduct_ids.')');
+            WHERE pl.`id_lang` = ' . $this->context->language->id;
+
+        if ($bfproduct_ids != '')
+        {
+            $query .= ' AND bfsp.id IN ('.$bfproduct_ids.')';
+        }
+
+        $shop_products = DB::getInstance()->executeS($query);
 
         foreach($bfproducts as &$bfp)
         {
@@ -110,6 +127,58 @@ class BlackfireSyncService
                 'id_product' => $id_product,
             ]);
         }
+    }
+
+    public function newShopProduct($id_product, $id_category)
+    {
+        $products = $this->httpService->getProducts($id_category);
+        $product = current(array_filter($products, fn($p) => $p['ID'] == $id_product));
+
+        $price = floatval($product['Your Price']) * 4.7 * 2 * 1.23;
+        $price = ceil( $price / 5 ) * 5 - 0.05;
+        $price = strval(round($price / 1.23, 6));
+        
+        $shop_product = new Product();
+        $shop_product->name = [];
+
+        $languages = Language::getLanguages();
+
+        foreach($languages as $language)
+        {
+            $shop_product->name[$language['id_lang']] = $product['Name'];
+            $shop_product->description[$language['id_lang']] = $product['Description'];
+        }
+
+        $shop_product->reference = $product['Item-ID'];
+
+        // VAT 23%
+        $shop_product->price = $price;
+        $shop_product->id_tax_rules_group = TaxRulesGroup::getIdByName('PL Standard Rate (23%)');
+
+        $shop_product->ean13 = $product['EAN'];
+        $shop_product->active = false;
+        $shop_product->weight = round(0.003 * $price, 3);
+
+        $shop_product->id_manufacturer = Manufacturer::getIdByName($product['Producer']);
+        $shop_product->manufacturer_name = $product['Producer'];
+
+        if ($shop_product->add())
+        {
+            $this->updateShopProduct($id_product, $shop_product->id, $id_category);
+
+            $image = new Image();
+            $image->id_product = $shop_product->id;
+            $image->cover = true;
+            if ($image->add()) {
+                if (!ImageHelpers::copyImg($shop_product->id, $image->id, $product['Image URL'], 'products', false)) {
+                    $image->delete();
+                }
+            }
+
+            return $shop_product;
+        }
+
+        return false;
     }
 
     public function sync()

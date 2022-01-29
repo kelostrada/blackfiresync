@@ -6,6 +6,7 @@ class AdminBlackfireSyncController extends ModuleAdminController
 {
     protected $categoryID = false;
     protected $subcategoryID = false;
+    protected $created_shop_product = false;
 
     public function __construct() 
     {
@@ -22,6 +23,7 @@ class AdminBlackfireSyncController extends ModuleAdminController
 
         if ($this->action == "ok") $this->saveShopProduct();
         if ($this->action == "x") $this->deleteShopProduct();
+        if ($this->action == "new") $this->newShopProduct();
     }
 
     public function initContent()
@@ -39,6 +41,13 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $this->setTemplate('blackfire_sync.tpl');
     }
 
+    public function postProcess() {
+        if ($this->created_shop_product) {
+            $this->redirect_after = Context::getContext()->link->getAdminLink('AdminProducts', true, ['id_product' => $this->created_shop_product->id]);
+        }
+        parent::postProcess();
+    }
+
     protected function saveShopProduct()
     {
         $id_shop_product = Tools::getValue("id_shop_product");
@@ -52,5 +61,14 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $id_product = Tools::getValue("id_product");
 
         BlackfireSyncService::cleanShopProduct($id_product);
+    }
+
+    protected function newShopProduct()
+    {
+        $id_product = Tools::getValue("id_product");
+
+        $shop_product = BlackfireSyncService::createShopProduct($id_product, $this->subcategoryID);
+
+        $this->created_shop_product = $shop_product;
     }
 }
