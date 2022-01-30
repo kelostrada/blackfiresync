@@ -72,6 +72,7 @@ class ImageHelpers {
         }
 
         $url = http_build_url('', $parced_url);
+        $imginfo = pathinfo($url);
 
         $orig_tmpfile = $tmpfile;
 
@@ -80,6 +81,25 @@ class ImageHelpers {
             if (!ImageManager::checkImageMemoryLimit($tmpfile)) {
                 @unlink($tmpfile);
 
+                return false;
+            }
+            
+            if ($imginfo['extension'] == 'png') {
+                // convert the image to jpg
+
+                $image = imagecreatefrompng($tmpfile);
+                $bg = imagecreatetruecolor(imagesx($image), imagesy($image));
+                imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
+                imagealphablending($bg, TRUE);
+                imagecopy($bg, $image, 0, 0, 0, 0, imagesx($image), imagesy($image));
+                imagedestroy($image);
+                $quality = 95;
+                imagejpeg($bg, $tmpfile, $quality);
+                imagedestroy($bg); 
+            } 
+            else if ($imginfo['extension'] != 'jpg')
+            {
+                @unlink($tmpfile);
                 return false;
             }
 
