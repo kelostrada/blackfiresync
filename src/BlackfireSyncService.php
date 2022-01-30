@@ -133,6 +133,7 @@ class BlackfireSyncService
     {
         $products = $this->httpService->getProducts($id_category);
         $product = current(array_filter($products, fn($p) => $p['ID'] == $id_product));
+        $product_details = $this->httpService->getProduct($id_product);
 
         $price = floatval($product['Your Price']) * 4.7 * 2 * 1.23;
         $price = ceil( $price / 5 ) * 5 - 0.05;
@@ -146,7 +147,7 @@ class BlackfireSyncService
         foreach($languages as $language)
         {
             $shop_product->name[$language['id_lang']] = $product['Name'];
-            $shop_product->description[$language['id_lang']] = $product['Description'];
+            $shop_product->description[$language['id_lang']] = $product_details['description'];
         }
 
         $shop_product->reference = $product['Item-ID'];
@@ -154,6 +155,8 @@ class BlackfireSyncService
         // VAT 23%
         $shop_product->price = $price;
         $shop_product->id_tax_rules_group = TaxRulesGroup::getIdByName('PL Standard Rate (23%)');
+
+        $shop_product->wholesale_price = floatval($product['Your Price']) * 4.7;
 
         $shop_product->ean13 = $product['EAN'];
         $shop_product->active = false;
@@ -165,6 +168,7 @@ class BlackfireSyncService
         if ($shop_product->add())
         {
             $this->updateShopProduct($id_product, $shop_product->id, $id_category);
+            $this->syncProduct($product, $shop_product->id);
 
             $image = new Image();
             $image->id_product = $shop_product->id;
@@ -198,89 +202,94 @@ class BlackfireSyncService
         {
             $products = $this->httpService->getProducts($subcategoryID);
 
-            foreach($shop_products as $sp)
+            foreach($shop_products as $shop_product)
             {
-                $update_data = [];
+                $product = current(array_filter($products, fn($p) => $p['ID'] == $shop_product['id']));
 
-                $product = current(array_filter($products, fn($p) => $p['ID'] == $sp['id']));
-
-                if ($product) {
-                    $release_date = DateTime::createFromFormat('d.m.Y', $product['Release Date']);
-                    if ($release_date)
-                    {
-                        $release_date = $release_date->format('Y-m-d');
-                        $update_data['available_date'] = $release_date;
-                    }
-
-                    $order_deadline = DateTime::createFromFormat('d.m.Y', $product['Order Deadline']);
-                    
-                    switch($product['Stock Level'])
-                    {
-                        case 'not on sale':
-                            $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
-                            break;
-
-                        case 'in stock':
-                            $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
-                            break;
-
-                        case 'low stock':
-                            $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
-                            break;
-
-                        case 'for preorder':
-                            if (!$order_deadline || $order_deadline > new DateTime("now"))
-                                $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
-                            else
-                                $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
-                            
-                            break;
-
-                        default:
-                            $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
-                            break;
-                    }
-                } else {
-                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
-                }
-
-                $product_result = DB::getInstance()->update('product', $update_data, 'id_product = ' . $sp['id_shop_product']);
-                $stock_result = DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $sp['id_shop_product']);
-
-                if (array_key_exists('available_date', $update_data))
-                {
-                    $product_details_result = [
-                        'product_shop' => DB::getInstance()->update('product_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
-                        'product_attribute' => DB::getInstance()->update('product_attribute', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
-                        'product_attribute_shop' => DB::getInstance()->update('product_attribute_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $sp['id_shop_product']),
-                    ];
-                }
-                else
-                {
-                    $product_details_result = null;
-                }
-
-                $log_array = [
-                    'id' => $sp['id'],
-                    'id_shop_product' => $sp['id_shop_product'],
-                    'out_of_stock' => $update_data['out_of_stock'],
-                    'release' => $product['Release Date'],
-                    'deadline' => $product['Order Deadline'],
-                    'stock_level' => $product['Stock Level'],
-                    'product_result' => $product_result,
-                    'product_details_result' => $product_details_result,
-                    'stock_result' => $stock_result,
-                ];
-
-                if ($product_result && $stock_result)
-                {
-                    $this->logger->info('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
-                }
-                else
-                {
-                    $this->logger->error('sync() ' . $sp['id'] . ' ' . $sp['id_shop_product'], $log_array);
-                }
+                $this->syncProduct($product, $shop_product['id']);
             }
+        }
+    }
+
+    private function syncProduct($product, $id_shop_product)
+    {
+        $update_data = [];
+
+        if ($product) {
+            $release_date = DateTime::createFromFormat('d.m.Y', $product['Release Date']);
+            if ($release_date)
+            {
+                $release_date = $release_date->format('Y-m-d');
+                $update_data['available_date'] = $release_date;
+            }
+
+            $order_deadline = DateTime::createFromFormat('d.m.Y', $product['Order Deadline']);
+            
+            switch($product['Stock Level'])
+            {
+                case 'not on sale':
+                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
+                    break;
+
+                case 'in stock':
+                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
+                    break;
+
+                case 'low stock':
+                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
+                    break;
+
+                case 'for preorder':
+                    if (!$order_deadline || $order_deadline > new DateTime("now"))
+                        $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
+                    else
+                        $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
+                    
+                    break;
+
+                default:
+                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
+                    break;
+            }
+        } else {
+            $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_DEFAULT;
+        }
+
+        $product_result = DB::getInstance()->update('product', $update_data, 'id_product = ' . $id_shop_product);
+        $stock_result = DB::getInstance()->update('stock_available', ['out_of_stock' => $update_data['out_of_stock']], 'id_product = ' . $id_shop_product);
+
+        if (array_key_exists('available_date', $update_data))
+        {
+            $product_details_result = [
+                'product_shop' => DB::getInstance()->update('product_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $id_shop_product),
+                'product_attribute' => DB::getInstance()->update('product_attribute', ['available_date' => $update_data['available_date']], 'id_product = ' . $id_shop_product),
+                'product_attribute_shop' => DB::getInstance()->update('product_attribute_shop', ['available_date' => $update_data['available_date']], 'id_product = ' . $id_shop_product),
+            ];
+        }
+        else
+        {
+            $product_details_result = null;
+        }
+
+        $log_array = [
+            'id' => $product['ID'],
+            'id_shop_product' => $id_shop_product,
+            'out_of_stock' => $update_data['out_of_stock'],
+            'release' => $product['Release Date'],
+            'deadline' => $product['Order Deadline'],
+            'stock_level' => $product['Stock Level'],
+            'product_result' => $product_result,
+            'product_details_result' => $product_details_result,
+            'stock_result' => $stock_result,
+        ];
+
+        if ($product_result && $stock_result)
+        {
+            $this->logger->info('sync() ' . $product['ID'] . ' ' . $id_shop_product, $log_array);
+        }
+        else
+        {
+            $this->logger->error('sync() ' . $product['ID'] . ' ' . $id_shop_product, $log_array);
         }
     }
 

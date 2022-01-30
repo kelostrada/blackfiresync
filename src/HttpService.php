@@ -173,4 +173,24 @@ class HttpService
 
         return $products;
     }
+
+    public function getProduct($productID)
+    {
+        if (!$productID) return false;
+
+        $response = $this->client->get('https://www.blackfire.eu/product.php?id=' . $productID, [
+            'cookies' => $this->cookieJar
+        ]);
+
+        $body = (string) $response->getBody();
+
+        $dom = new Dom;
+        $dom->loadStr($body);
+
+        return [
+            'name' => $dom->find('#content h1')->text(),
+            'image' => 'https://www.blackfire.eu/' . $dom->find('#image')->getTag()->getAttribute("src")->getValue(),
+            'description' => $dom->find('#tab-description p')->innerHtml(),
+        ];
+    }
 }
