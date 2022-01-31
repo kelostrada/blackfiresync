@@ -33,4 +33,8 @@ $(document).ready(function() {
     });
 
     $('#blackfire-sync-products-table').DataTable({paging: false});
+
+    $('.blackfire-sync-product-ignore-deadline-form').on('change', ':checkbox', (e) => {
+        $(e.delegateTarget).submit();
+    });
 });

@@ -24,6 +24,7 @@ class AdminBlackfireSyncController extends ModuleAdminController
         if ($this->action == "ok") $this->saveShopProduct();
         if ($this->action == "x") $this->deleteShopProduct();
         if ($this->action == "new") $this->newShopProduct();
+        if ($this->action == "force") $this->changeIgnoreDeadline();
     }
 
     public function initContent()
@@ -70,5 +71,12 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $shop_product = BlackfireSyncService::createShopProduct($id_product, $this->subcategoryID);
 
         $this->created_shop_product = $shop_product;
+    }
+
+    protected function changeIgnoreDeadline()
+    {
+        $id_product = Tools::getValue("id_product");
+        $ignore_deadline = Tools::getValue("ignore_deadline");
+        BlackfireSyncService::changeIgnoreDeadline($id_product, $ignore_deadline);
     }
 }

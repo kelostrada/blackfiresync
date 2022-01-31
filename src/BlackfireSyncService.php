@@ -59,13 +59,18 @@ class BlackfireSyncService
         return static::getInstance()->sync();
     }
 
+    public static function changeIgnoreDeadline($id_product, $ignore_deadline)
+    {
+        return static::getInstance()->modifyIgnoreDeadline($id_product, $ignore_deadline);
+    }
+
     public function getProductsFromSubcategory($subcategoryID)
     {
         $bfproducts = $this->httpService->getProducts($subcategoryID);
         $bfproduct_ids = array_map(function($bfp) { return $bfp['ID']; }, $bfproducts);
         $bfproduct_ids = implode(',', $bfproduct_ids);
 
-        $query = 'SELECT bfsp.id as blackfire_id, p.id_product, pl.name, pl.link_rewrite, img.id_image
+        $query = 'SELECT bfsp.id as blackfire_id, bfsp.ignore_deadline, p.id_product, pl.name, pl.link_rewrite, img.id_image
             FROM `'._DB_PREFIX_.'blackfiresync_products` bfsp
             JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`
             LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . Shop::addSqlRestrictionOnLang('pl') . ')
@@ -168,7 +173,7 @@ class BlackfireSyncService
         if ($shop_product->add())
         {
             $this->updateShopProduct($id_product, $shop_product->id, $id_category);
-            $this->syncProduct($product, $shop_product->id);
+            $this->syncProduct($product, $id_product, $shop_product->id, false);
 
             $image = new Image();
             $image->id_product = $shop_product->id;
@@ -183,6 +188,28 @@ class BlackfireSyncService
         }
 
         return false;
+    }
+
+    public function modifyIgnoreDeadline($id_product, $ignore_deadline)
+    {
+        $ignore_deadline = $ignore_deadline == "on" ? 1 : 0;
+
+        $result = DB::getInstance()->execute('UPDATE `'._DB_PREFIX_.'blackfiresync_products`    
+            SET `ignore_deadline` = ' . $ignore_deadline . ' WHERE `id` = ' . $id_product);
+
+        if ($result)
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::modifyIgnoreDeadline', 1, null, 'BlackfireProduct', $id_product);
+        }
+        else
+        {
+            \PrestaShopLogger::addLog('BlackfireSyncService::modifyIgnoreDeadline', 3, null, 'BlackfireProduct', $id_product);
+            $this->logger->error('modifyIgnoreDeadline() ' . $id_product, [
+                'result' => $result,
+                'id_product' => $id_product,
+                'ignore_deadline' => $ignore_deadline
+            ]);
+        }
     }
 
     public function sync()
@@ -206,12 +233,12 @@ class BlackfireSyncService
             {
                 $product = current(array_filter($products, fn($p) => $p['ID'] == $shop_product['id']));
 
-                $this->syncProduct($product, $shop_product['id']);
+                $this->syncProduct($product, $shop_product['id'], $shop_product['id_product'], $shop_product['ignore_deadline']);
             }
         }
     }
 
-    private function syncProduct($product, $id_shop_product)
+    private function syncProduct($product, $id_product, $id_shop_product, $ignore_deadline)
     {
         $update_data = [];
 
@@ -240,7 +267,7 @@ class BlackfireSyncService
                     break;
 
                 case 'for preorder':
-                    if (!$order_deadline || $order_deadline > new DateTime("now"))
+                    if ($ignore_deadline || !$order_deadline || $order_deadline > new DateTime("now"))
                         $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
                     else
                         $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
@@ -272,12 +299,12 @@ class BlackfireSyncService
         }
 
         $log_array = [
-            'id' => $product['ID'],
+            'id' => $id_product,
             'id_shop_product' => $id_shop_product,
             'out_of_stock' => $update_data['out_of_stock'],
-            'release' => $product['Release Date'],
-            'deadline' => $product['Order Deadline'],
-            'stock_level' => $product['Stock Level'],
+            'release' => $product ? $product['Release Date'] : 'n/a',
+            'deadline' => $product ? $product['Order Deadline'] : 'n/a',
+            'stock_level' => $product ? $product['Stock Level'] : 'n/a',
             'product_result' => $product_result,
             'product_details_result' => $product_details_result,
             'stock_result' => $stock_result,
@@ -285,11 +312,11 @@ class BlackfireSyncService
 
         if ($product_result && $stock_result)
         {
-            $this->logger->info('sync() ' . $product['ID'] . ' ' . $id_shop_product, $log_array);
+            $this->logger->info('sync() ' . $id_product . ' ' . $id_shop_product, $log_array);
         }
         else
         {
-            $this->logger->error('sync() ' . $product['ID'] . ' ' . $id_shop_product, $log_array);
+            $this->logger->error('sync() ' . $id_product . ' ' . $id_shop_product, $log_array);
         }
     }
 

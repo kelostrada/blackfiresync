@@ -44,6 +44,7 @@
                     <th>Date</th>
                     <th>Price</th>
                     <th>Stock</th>
+                    <th>Force?</th>
                     <th style="width: 200px;"></th>
                 </tr>
             </thead>
@@ -72,6 +73,21 @@
                     </td>
                     <td>
                         {$product["Stock Level"]}
+                    </td>
+                    <td>
+                        <form class="form-inline blackfire-sync-product-ignore-deadline-form" role="form" type="POST" action="">
+                            <input type="hidden" name="controller" value="AdminBlackfireSync" />
+                            <input type="hidden" name="token" value="{Tools::getAdminTokenLite('AdminBlackfireSync')}" />
+                            <input type="hidden" name="category_id" value="{$categoryID}" />
+                            <input type="hidden" name="subcategory_id" value="{$subcategoryID}" />
+                            <input type="hidden" name="id_product" value="{$product['ID']}" />
+                            <input type="hidden" name="action" value="force" />
+
+                            {if $product.shop_product}
+                            <input type="checkbox" name="ignore_deadline" 
+                                {if $product.shop_product.ignore_deadline}checked{/if} />
+                            {/if}
+                        </form>
                     </td>
                     <td class="blackfire-sync-shop-product">
                         <form class="form-inline" role="form" type="POST" action="">

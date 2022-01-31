@@ -39,5 +39,7 @@ function upgrade_module_1_1_0($module)
      * You could add a column in one of your module's tables
      */
 
-    return true;
+    $result = true;
+    $result &= Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'blackfiresync_products` ADD `ignore_deadline` BOOL NOT NULL DEFAULT false');
+    return $result;
 }
