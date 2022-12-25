@@ -24,15 +24,16 @@ class HttpService
         {
             $this->cookieJar = new CookieJar(false, [
                 [
-                    "Name" => "bf",
+                    "Name" => ".ASPXAUTH_SS",
                     "Value" => $lastCookie["cookie"],
                     "Domain" => "www.blackfire.eu",
                     "Path" => "/",
-                    "Max-Age" => "86400",
+                    "Max-Age" => null,
                     "Expires" => $lastCookie["expires"],
-                    "Secure" => true,
+                    "Secure" => false,
                     "Discard" => false,
-                    "HttpOnly" => true
+                    "HttpOnly" => true,
+                    "SameSite" => "Lax"
                 ]
             ]);
         }
@@ -46,20 +47,21 @@ class HttpService
     {
         $this->cookieJar = new CookieJar();
 
-        $response = $this->client->post('https://www.blackfire.eu/do_account.php', [
+        $response = $this->client->post('https://www.blackfire.eu/en-gb/profile/login', [
             'body' => [
-                "account" => $user,
-                "password" => $password,
-                "login" => "Log+in+to+your+Account",
+                "UserName" => $user,
+                "Password" => $password,
+                "RememberMe" => "true",
             ],
             'cookies' => $this->cookieJar
         ]);
 
         $cookies = $this->cookieJar->toArray();
         $cookies = array_filter($cookies, function($c) {
-            return $c["Name"] == "bf";
+            return $c["Name"] == ".ASPXAUTH_SS";
         });
-        reset($cookies);
+        
+        $cookies = array_values($cookies);
         $cookie = $cookies[0];
 
         $body = (string) $response->getBody();
