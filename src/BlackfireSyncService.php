@@ -68,6 +68,7 @@ class BlackfireSyncService
     {
         $bfproducts = $this->httpService->getProducts($subcategoryID);
         $bfproduct_ids = array_map(function($bfp) { return $bfp['ID']; }, $bfproducts);
+        $bfproduct_ids = array_filter($bfproduct_ids);
         $bfproduct_ids = implode(',', $bfproduct_ids);
 
         $query = 'SELECT bfsp.id as blackfire_id, bfsp.ignore_deadline, p.id_product, pl.name, pl.link_rewrite, img.id_image
@@ -140,7 +141,7 @@ class BlackfireSyncService
         $product = current(array_filter($products, fn($p) => $p['ID'] == $id_product));
         $product_details = $this->httpService->getProduct($id_product);
 
-        $price = floatval($product['Your Price']) * 4.7 * 2 * 1.23;
+        $price = floatval($product['Your Price']) * 5 * 1.5 * 1.23;
         $price = ceil( $price / 5 ) * 5 - 0.05;
         $price = strval(round($price / 1.23, 6));
         
@@ -151,7 +152,7 @@ class BlackfireSyncService
 
         foreach($languages as $language)
         {
-            $shop_product->name[$language['id_lang']] = $product['Name'];
+            $shop_product->name[$language['id_lang']] = str_replace(array('#'), '', html_entity_decode($product_details['name'], ENT_QUOTES));
             $shop_product->description[$language['id_lang']] = $product_details['description'];
         }
 
@@ -163,7 +164,7 @@ class BlackfireSyncService
 
         $shop_product->wholesale_price = floatval($product['Your Price']) * 4.7;
 
-        $shop_product->ean13 = $product['EAN'];
+        $shop_product->ean13 =  ltrim(preg_replace('/[^0-9]/s','',$product['EAN']), '0');
         $shop_product->active = false;
         $shop_product->weight = round(0.003 * $price, 3);
 
