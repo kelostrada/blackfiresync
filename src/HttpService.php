@@ -74,14 +74,14 @@ class HttpService
         {
             Db::getInstance()->insert("blackfiresync", [
                 "cookie" => $cookie["Value"], 
-                "expires" => $cookie["Expires"]
+                "expires" => time() + 24 * 60 * 60
             ]);
         }
     }
 
     public function getAccountInfo()
     {
-        $response = $this->client->get('https://www.blackfire.eu/account.php?act=account', [
+        $response = $this->client->get('https://www.blackfire.eu/en-gb/profile/', [
             'cookies' => $this->cookieJar
         ]);
 
@@ -90,10 +90,11 @@ class HttpService
         $dom = new Dom;
         $dom->loadStr($body);
 
-        $accountData = $dom->find('#content .content .left p');
+        $accountData = $dom->find('div.account-info-inside .control .field');
 
         return [
-            "id" => trim($accountData[0]->getChildren()[1]->text())
+            "name" => trim($accountData[0]->text()),
+            "email" => trim($accountData[1]->text())
         ];
     }
 
