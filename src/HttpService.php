@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use \Db;
 use PHPHtmlParser\Dom;
+use PHPHtmlParser\Options;
 use League\Csv\Reader;
 use League\Csv\Statement;
 
@@ -100,46 +101,47 @@ class HttpService
 
     public function getCategories()
     {
-        // use contact page, as home page loads really slowly
-        $response = $this->client->get('https://www.blackfire.eu/info.php?txt=contact', [
+        // use about-us page, as home page loads the slowest
+        $response = $this->client->get('https://www.blackfire.eu/en-gb/about-us', [
             'cookies' => $this->cookieJar
         ]);
 
         $body = (string) $response->getBody();
 
         $dom = new Dom;
+        $dom->setOptions(
+            (new Options())
+            ->setPreserveLineBreaks(true)
+        );
         $dom->loadStr($body);
 
-        $categoriesDom = $dom->find('#ctabs li a');
+        $categoriesDom = $dom->find('span[plaintext^=Brands]')->parent->parent->find('div.nav-wrapper ul.nav-list li.nav-item.nav-item-block');
 
         $categories = [];
 
         foreach($categoriesDom as $c)
         {
-            $href = $c->getTag()->getAttribute("href")->getValue();
+            $link = $c->find('a.link-lvl-2');
 
             $category = [
-                "id" => substr($href, 9),
-                "name" => $c->text(),
-                "link" => $href,
+                "name" => trim($link->text()),
+                "link" => $link->getTag()->getAttribute("href")->getValue(),
                 "subcategories" => []
             ];
 
-            $subcategories = $dom->find($category['link'] . ' li a');
+            $subcategories = $c->find('ul.nav-lvl-3 > li.nav-item');
 
             foreach($subcategories as $s)
             {
-                $href = $s->getTag()->getAttribute("href")->getValue();
-
-                if (strpos($href, "list.php?subcategory=") === false) continue;
+                $link = $s->find('a.lvl-3-title');
 
                 $category["subcategories"][] = [
-                    "name" => $s->text(),
-                    "id" => explode("=", $href)[1]
+                    "name" => trim($link->text()),
+                    "link" => $link->getTag()->getAttribute("href")->getValue()
                 ];
             }
 
-            $categories[$category["id"]] = $category;
+            $categories[$category["name"]] = $category;
         }
 
         return $categories;
