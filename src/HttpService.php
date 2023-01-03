@@ -219,6 +219,11 @@ class HttpService
             $releaseDate = trim($attributes->offsetGet($offset++)->text());
             $preorderDeadline = trim($attributes->offsetGet($offset++)->text());
             $status = trim($attributes->offsetGet($offset++)->text());
+            
+            $price = trim($productItem->find('.lbl-price')->text());
+            $price = str_replace('€ ', '', $price);
+            $oldPrice = trim($productItem->find('.list-price.font-smaller')->text());
+            $oldPrice = str_replace('€ ', '', $oldPrice);
 
             $inPreorder = $productItem->find('.pdp-quantity-preorder');
             if ($inPreorder->count() > 0)
@@ -243,8 +248,8 @@ class HttpService
                 'preorder_deadline' => $preorderDeadline,
                 'status' => $status,
                 'stock' => trim($productItem->find('.erpbase_stocklevel span')->text()),
-                'price' => trim($productItem->find('.lbl-price')->text()),
-                'old_price' => trim($productItem->find('.list-price.font-smaller')->text()),
+                'price' => $price,
+                'old_price' => $oldPrice,
                 'in_preorder' => $inPreorder
             ];
         }
