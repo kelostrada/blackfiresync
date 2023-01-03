@@ -125,7 +125,7 @@ class HttpService
 
             $category = [
                 "name" => trim($link->text()),
-                "link" => $link->getTag()->getAttribute("href")->getValue(),
+                "link" => 'https://www.blackfire.eu/en-gb' . $link->getTag()->getAttribute("href")->getValue(),
                 "subcategories" => []
             ];
 
@@ -137,7 +137,7 @@ class HttpService
 
                 $category["subcategories"][] = [
                     "name" => trim($link->text()),
-                    "link" => $link->getTag()->getAttribute("href")->getValue()
+                    "link" => 'https://www.blackfire.eu/en-gb' . $link->getTag()->getAttribute("href")->getValue()
                 ];
             }
 
