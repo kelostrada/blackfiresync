@@ -14,6 +14,7 @@ class HttpService
 {
     private $client;
     private $cookieJar;
+    private $address = 'https://www.blackfire.eu';
 
     public function __construct($user, $password)
     {
@@ -48,7 +49,7 @@ class HttpService
     {
         $this->cookieJar = new CookieJar();
 
-        $response = $this->client->post('https://www.blackfire.eu/en-gb/profile/login', [
+        $response = $this->client->post($this->address . '/en-gb/profile/login', [
             'body' => [
                 "UserName" => $user,
                 "Password" => $password,
@@ -82,7 +83,7 @@ class HttpService
 
     public function getAccountInfo()
     {
-        $response = $this->client->get('https://www.blackfire.eu/en-gb/profile/', [
+        $response = $this->client->get($this->address . '/en-gb/profile', [
             'cookies' => $this->cookieJar
         ]);
 
@@ -102,7 +103,7 @@ class HttpService
     public function getCategories()
     {
         // use about-us page, as home page loads the slowest
-        $response = $this->client->get('https://www.blackfire.eu/en-gb/about-us', [
+        $response = $this->client->get($this->address . '/en-gb/about-us', [
             'cookies' => $this->cookieJar
         ]);
 
@@ -125,7 +126,7 @@ class HttpService
 
             $category = [
                 "name" => trim($link->text()),
-                "link" => 'https://www.blackfire.eu/en-gb' . $link->getTag()->getAttribute("href")->getValue(),
+                "link" => $link->getTag()->getAttribute("href")->getValue(),
                 "subcategories" => []
             ];
 
@@ -137,7 +138,7 @@ class HttpService
 
                 $category["subcategories"][] = [
                     "name" => trim($link->text()),
-                    "link" => 'https://www.blackfire.eu/en-gb' . $link->getTag()->getAttribute("href")->getValue()
+                    "link" => $link->getTag()->getAttribute("href")->getValue()
                 ];
             }
 
@@ -175,7 +176,7 @@ class HttpService
 
     private function fetchProductsPage($categoryLink, $page)
     {
-        $response = $this->client->get('https://www.blackfire.eu/en-gb/' . $categoryLink . '?page=' . $page, [
+        $response = $this->client->get($this->address . $categoryLink . '?page=' . $page, [
             'cookies' => $this->cookieJar,
             'headers' => [
                 'x-requested-with' => 'XMLHttpRequest'
@@ -233,8 +234,8 @@ class HttpService
 
             $products[$productID . 'a'] = [
                 'id' => $productID,
-                'image_small' => 'https://www.blackfire.eu/product/image/small/' . $productID . '_0.png',
-                'image_large' => 'https://www.blackfire.eu/product/image/large/' . $productID . '_0.png',
+                'image_small' => $this->address . '/product/image/small/' . $productID . '_0.png',
+                'image_large' => $this->address . '/product/image/large/' . $productID . '_0.png',
                 'name' => trim($productItem->find('a.product-title span')->text()),
                 'ean' => $ean,
                 'ref' => $productNo,
