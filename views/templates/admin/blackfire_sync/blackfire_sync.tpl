@@ -5,7 +5,7 @@
 
     <div class="panel-body" id="blackfire-sync-categories">
         <div class="container">
-            <strong>Account ID:</strong> {$account["id"]}
+            <strong>Account:</strong> {$account["email"]} | {$account["name"]} 
 
             <form class="form form-inline" role="form" id="bf-categories-form" type="GET">
                 <input type="hidden" name="controller" value="AdminBlackfireSync" />
@@ -52,27 +52,27 @@
                 {foreach from=$products item=product}
                 <tr>
                     <td>
-                        <a href="https://www.blackfire.eu/product.php?id={$product["ID"]}" target="_blank">
-                            <img height="80" src="{$product["Image URL"]}">
+                        <a href="https://www.blackfire.eu/en-gb/{$product["id"]}" target="_blank">
+                            <img height="80" src="{$product["image_small"]}">
                         </a>
                     </td>
                     <td>
-                        {$product["ID"]}
+                        {$product["id"]}
                     </td>
                     <td>
-                        {$product["Name"]} - {$product["EAN"]}
+                        {$product["name"]} - {$product["ean"]}
                     </td>
                     <td>
-                        {$product["Item-ID"]}
+                        {$product["ref"]}
                     </td>
                     <td>
-                        {date_create_from_format("d.m.Y", $product["Release Date"])|date_format:"%Y-%m-%d"}
+                        {date_create_from_format("Y/m/d", $product["release_date"])|date_format:"%Y-%m-%d"}
                     </td>
                     <td>
-                        {$product["Your Price"]}
+                        {$product["price"]}
                     </td>
                     <td>
-                        {$product["Stock Level"]}
+                        {$product["stock"]}
                     </td>
                     <td>
                         <form class="form-inline blackfire-sync-product-ignore-deadline-form" role="form" type="POST" action="">
@@ -80,7 +80,7 @@
                             <input type="hidden" name="token" value="{Tools::getAdminTokenLite('AdminBlackfireSync')}" />
                             <input type="hidden" name="category_id" value="{$categoryID}" />
                             <input type="hidden" name="subcategory_id" value="{$subcategoryID}" />
-                            <input type="hidden" name="id_product" value="{$product['ID']}" />
+                            <input type="hidden" name="id_product" value="{$product['id']}" />
                             <input type="hidden" name="action" value="force" />
 
                             {if $product.shop_product}
@@ -95,7 +95,7 @@
                             <input type="hidden" name="token" value="{Tools::getAdminTokenLite('AdminBlackfireSync')}" />
                             <input type="hidden" name="category_id" value="{$categoryID}" />
                             <input type="hidden" name="subcategory_id" value="{$subcategoryID}" />
-                            <input type="hidden" name="id_product" value="{$product['ID']}" />
+                            <input type="hidden" name="id_product" value="{$product['id']}" />
 
                             <div class="blackfire-sync-shop-product-options">
                                     <input type="text" class="form-control update-shop-product" placeholder="Product ID" 

@@ -123,10 +123,12 @@ class HttpService
         foreach($categoriesDom as $c)
         {
             $link = $c->find('a.link-lvl-2');
+            $url = $link->getTag()->getAttribute("href")->getValue();
 
             $category = [
+                "id" => hash('crc32b', $url),
                 "name" => trim($link->text()),
-                "link" => $link->getTag()->getAttribute("href")->getValue(),
+                "link" => $url,
                 "subcategories" => []
             ];
 
@@ -135,22 +137,28 @@ class HttpService
             foreach($subcategories as $s)
             {
                 $link = $s->find('a.lvl-3-title');
+                $url = $link->getTag()->getAttribute("href")->getValue();
+                $id = hash('crc32b', $url);
 
-                $category["subcategories"][] = [
+                $category["subcategories"][$id] = [
+                    "id" => $id,
                     "name" => trim($link->text()),
-                    "link" => $link->getTag()->getAttribute("href")->getValue()
+                    "link" => $url
                 ];
             }
 
-            $categories[$category["name"]] = $category;
+            $categories[$category["id"]] = $category;
         }
 
         return $categories;
     }
 
-    public function getProducts($categoryLink)
+    public function getProducts($categoryID, $subcategoryID)
     {
-        if (!$categoryLink) return [];
+        if (!$categoryID || !$subcategoryID) return [];
+
+        $categories = $this->getCategories();
+        $categoryLink = $categories[$categoryID]['subcategories'][$subcategoryID]['link'];
 
         $dom = $this->fetchProductsPage($categoryLink, 1);
         $products = $this->parseProducts($dom);
@@ -237,10 +245,13 @@ class HttpService
                 $inPreorder = 0;
             }
 
+            $imageSmall = $productItem->find('.product-tile .hyp-thumbnail span.thumbnail noscript img')->getTag()->getAttribute('src')->getValue();
+            $imageLarge = str_replace('small', 'large', $imageSmall);
+
             $products[$productID . 'a'] = [
                 'id' => $productID,
-                'image_small' => $this->address . '/product/image/small/' . $productID . '_0.png',
-                'image_large' => $this->address . '/product/image/large/' . $productID . '_0.png',
+                'image_small' => $this->address . $imageSmall,
+                'image_large' => $this->address . $imageLarge,
                 'name' => trim($productItem->find('a.product-title span')->text()),
                 'ean' => $ean,
                 'ref' => $productNo,
@@ -272,7 +283,7 @@ class HttpService
 
         return [
             'name' => trim($dom->find('.font-product-title')->text()),
-            'image' => $this->address . '/product/image/large/' . $productID . '_0.png',
+            'image' => $dom->find('.details-img .carousel-image-m-wrapper noscript img')->getTag()->getAttribute('src')->getValue(),
             'description' => $dom->find('.description.fr-view')->innerHtml(),
         ];
     }

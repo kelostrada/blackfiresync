@@ -34,9 +34,9 @@ class BlackfireSyncService
         return static::getInstance()->httpService->getCategories();
     }
 
-    public static function getProducts($subcategoryID)
+    public static function getProducts($categoryID, $subcategoryID)
     {
-        return static::getInstance()->getProductsFromSubcategory($subcategoryID);
+        return static::getInstance()->getProductsFromSubcategory($categoryID, $subcategoryID);
     }
 
     public static function setShopProduct($id_product, $id_shop_product, $id_category)
@@ -64,10 +64,10 @@ class BlackfireSyncService
         return static::getInstance()->modifyIgnoreDeadline($id_product, $ignore_deadline);
     }
 
-    public function getProductsFromSubcategory($subcategoryID)
+    public function getProductsFromSubcategory($categoryID, $subcategoryID)
     {
-        $bfproducts = $this->httpService->getProducts($subcategoryID);
-        $bfproduct_ids = array_map(function($bfp) { return $bfp['ID']; }, $bfproducts);
+        $bfproducts = $this->httpService->getProducts($categoryID, $subcategoryID);
+        $bfproduct_ids = array_map(function($bfp) { return $bfp['id']; }, $bfproducts);
         $bfproduct_ids = array_filter($bfproduct_ids);
         $bfproduct_ids = implode(',', $bfproduct_ids);
 
@@ -87,7 +87,7 @@ class BlackfireSyncService
 
         foreach($bfproducts as &$bfp)
         {
-            $shop_product = current(array_filter($shop_products, fn($p) => $p['blackfire_id'] == $bfp['ID']));
+            $shop_product = current(array_filter($shop_products, fn($p) => $p['blackfire_id'] == $bfp['id']));
             $bfp['shop_product'] = $shop_product;
         }
 

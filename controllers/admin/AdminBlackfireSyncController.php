@@ -34,7 +34,7 @@ class AdminBlackfireSyncController extends ModuleAdminController
             'subcategoryID' => $this->subcategoryID,
             'account' => BlackfireSyncService::getAccountInfo(),
             'categories' => BlackfireSyncService::getCategories(),
-            'products' => BlackfireSyncService::getProducts($this->subcategoryID),
+            'products' => BlackfireSyncService::getProducts($this->categoryID, $this->subcategoryID),
         );
 
         parent::initContent();
