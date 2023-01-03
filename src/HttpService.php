@@ -261,7 +261,7 @@ class HttpService
     {
         if (!$productID) return false;
 
-        $response = $this->client->get('https://www.blackfire.eu/product.php?id=' . $productID, [
+        $response = $this->client->get($this->address . '/en-gb/' . $productID, [
             'cookies' => $this->cookieJar
         ]);
 
@@ -271,9 +271,9 @@ class HttpService
         $dom->loadStr($body);
 
         return [
-            'name' => $dom->find('#content h1')->text(),
-            'image' => 'https://www.blackfire.eu/' . $dom->find('#image')->getTag()->getAttribute("src")->getValue(),
-            'description' => $dom->find('#tab-description p')->innerHtml(),
+            'name' => trim($dom->find('.font-product-title')->text()),
+            'image' => $this->address . '/product/image/large/' . $productID . '_0.png',
+            'description' => $dom->find('.description.fr-view')->innerHtml(),
         ];
     }
 }
