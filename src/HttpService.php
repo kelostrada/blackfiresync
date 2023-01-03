@@ -147,33 +147,105 @@ class HttpService
         return $categories;
     }
 
-    public function getProducts($subcategoryID)
+    public function getProducts($categoryLink)
     {
-        if (!$subcategoryID) return [];
+        if (!$categoryLink) return [];
 
-        $response = $this->client->get('https://www.blackfire.eu/get_csv.php?subcategory=' . $subcategoryID, [
-            'cookies' => $this->cookieJar
+        $dom = $this->fetchProductsPage($categoryLink, 1);
+        $products = $this->parseProducts($dom);
+        
+        $pagination = $dom->find('ul.pager-list li');
+        $liCount = $pagination->count();
+
+        if ($liCount > 0)
+        {
+            $lastLi = $pagination->offsetGet($liCount - 1);
+            $pagesCount = $lastLi->find('a')->text();
+
+            for ($i = 2; $i <= $pagesCount; $i++) 
+            {
+                $dom = $this->fetchProductsPage($categoryLink, $i);
+
+                $products = array_merge($products, $this->parseProducts($dom));
+            }
+        }
+
+        return $products;
+    }
+
+    private function fetchProductsPage($categoryLink, $page)
+    {
+        $response = $this->client->get('https://www.blackfire.eu/en-gb/' . $categoryLink . '?page=' . $page, [
+            'cookies' => $this->cookieJar,
+            'headers' => [
+                'x-requested-with' => 'XMLHttpRequest'
+            ]
         ]);
 
         $body = (string) $response->getBody();
 
-        $csv = Reader::createFromString($body);
-        $csv->setHeaderOffset(0);
-        $csv->setDelimiter(';');
+        $dom = new Dom;
+        $dom->setOptions(
+            (new Options())
+            ->setPreserveLineBreaks(true)
+        );
+        $dom->loadStr($body);
 
-        $records = Statement::create()->process($csv);
+        return $dom;
+    }
 
+    private function parseProducts($dom)
+    {
+        $productItems = $dom->find('div.product-list .l-products-item');
         $products = [];
 
-        foreach($records as $record)
+        foreach($productItems as $productItem)
         {
-            $product = $record;
+            $productID = $productItem->getTag()->getAttribute('data-id')->getValue();
 
-            $startPos = strlen("https://www.blackfire.eu/img/");
-            $length = strpos($record["Image URL"], "_") - $startPos;
-            $product["ID"] = substr($record["Image URL"], $startPos, $length);
+            $attributes = $productItem->find('div.product-attributes span.value');
 
-            $products[] = $product;
+            $offset = 0;
+            $productNo = trim($attributes->offsetGet($offset++)->text());
+            $ean = trim($attributes->offsetGet($offset++)->text());
+
+            if (date_parse($ean)['error_count'] == 0)
+            {
+                $ean = '';
+                $offset--;
+            }
+
+            $releaseDate = trim($attributes->offsetGet($offset++)->text());
+            $preorderDeadline = trim($attributes->offsetGet($offset++)->text());
+            $status = trim($attributes->offsetGet($offset++)->text());
+
+            $inPreorder = $productItem->find('.pdp-quantity-preorder');
+            if ($inPreorder->count() > 0)
+            {
+                $inPreorder = trim($inPreorder->text());
+                $inPreorder = str_replace('Already in pre-order : ', '', $inPreorder);
+                $inPreorder = (int) $inPreorder;
+            }
+            else
+            {
+                $inPreorder = 0;
+            }
+
+            $products[$productID . 'a'] = [
+                'id' => $productID,
+                'image_small' => 'https://www.blackfire.eu/product/image/small/' . $productID . '_0.png',
+                'image_large' => 'https://www.blackfire.eu/product/image/large/' . $productID . '_0.png',
+                'name' => trim($productItem->find('a.product-title span')->text()),
+                'ean' => $ean,
+                'ref' => $productNo,
+                'release_date' => $releaseDate,
+                'preorder_deadline' => $preorderDeadline,
+                'status' => $status,
+                'stock' => trim($productItem->find('.erpbase_stocklevel span')->text()),
+                'price' => trim($productItem->find('.lbl-price')->text()),
+                'old_price' => trim($productItem->find('.list-price.font-smaller')->text()),
+                'in_preorder' => $inPreorder
+            ];
         }
 
         return $products;
