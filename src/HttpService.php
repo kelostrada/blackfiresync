@@ -9,6 +9,7 @@ use PHPHtmlParser\Dom;
 use PHPHtmlParser\Options;
 use League\Csv\Reader;
 use League\Csv\Statement;
+use \Blackfire\BlackfireSyncService;
 
 class HttpService
 {
@@ -76,7 +77,7 @@ class HttpService
         {
             Db::getInstance()->insert("blackfiresync", [
                 "cookie" => $cookie["Value"], 
-                "expires" => time() + 24 * 60 * 60
+                "expires" => time() + 2 * 60 * 60
             ]);
         }
     }
@@ -126,28 +127,41 @@ class HttpService
             $url = $link->getTag()->getAttribute("href")->getValue();
 
             $category = [
-                "id" => hash('crc32b', $url),
                 "name" => trim($link->text()),
                 "link" => $url,
                 "subcategories" => []
             ];
 
-            $subcategories = $c->find('ul.nav-lvl-3 > li.nav-item');
+            $response = $this->client->get($this->address . $url, [
+                'cookies' => $this->cookieJar
+            ]);
+
+            $body = (string) $response->getBody();
+
+            $dom = new Dom;
+            $dom->setOptions(
+                (new Options())
+                ->setPreserveLineBreaks(true)
+            );
+            $dom->loadStr($body);
+
+            $subcategories = $dom->find('div.facets h4[plaintext^=Product category]')->parent->parent->find('ul.list-facets li');
 
             foreach($subcategories as $s)
             {
-                $link = $s->find('a.lvl-3-title');
+                $link = $s->find('a.facet-item');
+                $name = trim($link->text());
                 $url = $link->getTag()->getAttribute("href")->getValue();
-                $id = hash('crc32b', $url);
 
-                $category["subcategories"][$id] = [
-                    "id" => $id,
-                    "name" => trim($link->text()),
+                if ($name == $category['name']) continue;
+
+                $category["subcategories"][] = [
+                    "name" => str_replace($category['name'] . '\\', '', $name),
                     "link" => $url
                 ];
             }
 
-            $categories[$category["id"]] = $category;
+            $categories[] = $category;
         }
 
         return $categories;
@@ -157,7 +171,7 @@ class HttpService
     {
         if (!$categoryID || !$subcategoryID) return [];
 
-        $categories = $this->getCategories();
+        $categories = BlackfireSyncService::getCategories();
         $categoryLink = $categories[$categoryID]['subcategories'][$subcategoryID]['link'];
 
         $dom = $this->fetchProductsPage($categoryLink, 1);
@@ -285,6 +299,7 @@ class HttpService
             'name' => trim($dom->find('.font-product-title')->text()),
             'image' => $dom->find('.details-img .carousel-image-m-wrapper noscript img')->getTag()->getAttribute('src')->getValue(),
             'description' => $dom->find('.description.fr-view')->innerHtml(),
+            'manufacturer' => trim($dom->find('td[plaintext^=Manufacturer Code]')->parent->find('td.value')->text())
         ];
     }
 }

@@ -42,8 +42,11 @@
                     <th>Name</th>
                     <th>Reference</th>
                     <th>Date</th>
+                    <th>Deadline</th>
                     <th>Price</th>
+                    <th>Preordered</th>
                     <th>Stock</th>
+                    <th>Status</th>
                     <th>Force?</th>
                     <th style="width: 200px;"></th>
                 </tr>
@@ -66,13 +69,22 @@
                         {$product["ref"]}
                     </td>
                     <td>
-                        {date_create_from_format("Y/m/d", $product["release_date"])|date_format:"%Y-%m-%d"}
+                        {date_create_from_format("d/m/Y", $product["release_date"])|date_format:"%Y-%m-%d"}
+                    </td>
+                    <td>
+                        {date_create_from_format("d/m/Y", $product["preorder_deadline"])|date_format:"%Y-%m-%d"}
                     </td>
                     <td>
                         {$product["price"]}
                     </td>
                     <td>
+                        {$product["in_preorder"]}
+                    </td>
+                    <td>
                         {$product["stock"]}
+                    </td>
+                    <td>
+                        {$product["status"]}
                     </td>
                     <td>
                         <form class="form-inline blackfire-sync-product-ignore-deadline-form" role="form" type="POST" action="">

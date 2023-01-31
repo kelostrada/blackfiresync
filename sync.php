@@ -8,4 +8,5 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Blackfire\BlackfireSyncService;
 
+BlackfireSyncService::syncCategories();
 BlackfireSyncService::syncProducts();

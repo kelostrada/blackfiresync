@@ -19,6 +19,8 @@ use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
+function findIndex($a,$f){foreach($a as $k=>$v)if($f($v,$k,$a))return $k;}
+
 class BlackfireSyncService
 {
     private Context $context;
@@ -31,7 +33,7 @@ class BlackfireSyncService
 
     public static function getCategories()
     {
-        return static::getInstance()->httpService->getCategories();
+        return static::getInstance()->getLocalCategories();
     }
 
     public static function getProducts($categoryID, $subcategoryID)
@@ -39,9 +41,9 @@ class BlackfireSyncService
         return static::getInstance()->getProductsFromSubcategory($categoryID, $subcategoryID);
     }
 
-    public static function setShopProduct($id_product, $id_shop_product, $id_category)
+    public static function setShopProduct($id_product, $id_shop_product, $categoryID, $subcategoryID)
     {
-        return static::getInstance()->updateShopProduct($id_product, $id_shop_product, $id_category);
+        return static::getInstance()->updateShopProduct($id_product, $id_shop_product, $categoryID, $subcategoryID);
     }
 
     public static function cleanShopProduct($id_product)
@@ -49,14 +51,19 @@ class BlackfireSyncService
         return static::getInstance()->deleteShopProduct($id_product);
     }
 
-    public static function createShopProduct($id_product, $id_category)
+    public static function createShopProduct($id_product, $categoryID, $subcategoryID)
     {
-        return static::getInstance()->newShopProduct($id_product, $id_category);
+        return static::getInstance()->newShopProduct($id_product, $categoryID, $subcategoryID);
     }
 
     public static function syncProducts()
     {
         return static::getInstance()->sync();
+    }
+
+    public static function syncCategories()
+    {
+        return static::getInstance()->syncCategoriesLocally();
     }
 
     public static function changeIgnoreDeadline($id_product, $ignore_deadline)
@@ -94,25 +101,49 @@ class BlackfireSyncService
         return $bfproducts;
     }
 
-    public function updateShopProduct($id_product, $id_shop_product, $id_category)
+    public function getLocalCategories()
+    {
+        $query = 'SELECT c.* FROM `'._DB_PREFIX_.'blackfiresync_categories` c';
+        $categories = DB::getInstance()->executeS($query);
+
+        $query = 'SELECT sc.* FROM `'._DB_PREFIX_.'blackfiresync_subcategories` sc';
+        $subcategories = DB::getInstance()->executeS($query);
+
+        $result = [];
+
+        foreach ($subcategories as $subcategory)
+        {
+            $index = findIndex($categories, function($w,$i,$a) use($subcategory) { return $w['id'] == $subcategory['category_id'];});
+
+            if (!isset($result[$subcategory['category_id']])) 
+            {
+                $result[$subcategory['category_id']] = $categories[$index];
+            }
+            $result[$subcategory['category_id']]['subcategories'][$subcategory['id']] = $subcategory;
+        }
+
+        return $result;
+    }
+
+    public function updateShopProduct($id_product, $id_shop_product, $categoryID, $subcategoryID)
     {
         $result_delete = DB::getInstance()->delete('blackfiresync_products', 'id = ' . $id_product);
         $result_insert = DB::getInstance()->execute('INSERT INTO `'._DB_PREFIX_.'blackfiresync_products` 
-            (`id`, `id_shop_product`, `id_category`) VALUES ('.$id_product.','.$id_shop_product.','.$id_category.')');
+            (`id`, `id_shop_product`, `subcategory_id`) VALUES ('.$id_product.','.$id_shop_product.','.$subcategoryID.')');
 
         if ($result_delete && $result_insert)
         {
-            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | category: ' . $id_category, 1, null, 'Product', $id_shop_product);
+            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | subcategory: ' . $subcategoryID, 1, null, 'Product', $id_shop_product);
         }
         else
         {
-            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | category: ' . $id_category, 3, null, 'Product', $id_shop_product);
+            \PrestaShopLogger::addLog('BlackfireSyncService::updateShopProduct | product: ' . $id_product . ' | subcategory: ' . $subcategoryID, 3, null, 'Product', $id_shop_product);
             $this->logger->error('updateShopProduct() ' . $id_product . ' ' . $id_shop_product, [
                 'result_delete' => $result_delete,
                 'result_insert' => $result_insert,
                 'id_product' => $id_product,
                 'id_shop_product' => $id_shop_product,
-                'id_category' => $id_category
+                'id_category' => $subcategoryID
             ]);
         }
     }
@@ -135,13 +166,13 @@ class BlackfireSyncService
         }
     }
 
-    public function newShopProduct($id_product, $id_category)
+    public function newShopProduct($id_product, $categoryID, $subcategoryID)
     {
-        $products = $this->httpService->getProducts($id_category);
-        $product = current(array_filter($products, fn($p) => $p['ID'] == $id_product));
+        $products = $this->httpService->getProducts($categoryID, $subcategoryID);
+        $product = current(array_filter($products, fn($p) => $p['id'] == $id_product));
         $product_details = $this->httpService->getProduct($id_product);
 
-        $price = floatval($product['Your Price']) * 5 * 1.5 * 1.23;
+        $price = floatval($product['price']) * 5 * 1.5 * 1.23;
         $price = ceil( $price / 5 ) * 5 - 0.05;
         $price = strval(round($price / 1.23, 6));
         
@@ -156,31 +187,31 @@ class BlackfireSyncService
             $shop_product->description[$language['id_lang']] = $product_details['description'];
         }
 
-        $shop_product->reference = $product['Item-ID'];
+        $shop_product->reference = $product['ref'];
 
         // VAT 23%
         $shop_product->price = $price;
         $shop_product->id_tax_rules_group = TaxRulesGroup::getIdByName('PL Standard Rate (23%)');
 
-        $shop_product->wholesale_price = floatval($product['Your Price']) * 4.7;
+        $shop_product->wholesale_price = floatval($product['price']) * 4.7;
 
-        $shop_product->ean13 =  ltrim(preg_replace('/[^0-9]/s','',$product['EAN']), '0');
+        $shop_product->ean13 =  ltrim(preg_replace('/[^0-9]/s','',$product['ean']), '0');
         $shop_product->active = false;
         $shop_product->weight = round(0.003 * $price, 3);
 
-        $shop_product->id_manufacturer = Manufacturer::getIdByName($product['Producer']);
-        $shop_product->manufacturer_name = $product['Producer'];
+        $shop_product->id_manufacturer = Manufacturer::getIdByName($product_details['manufacturer']);
+        $shop_product->manufacturer_name = $product_details['manufacturer'];
 
         if ($shop_product->add())
         {
-            $this->updateShopProduct($id_product, $shop_product->id, $id_category);
+            $this->updateShopProduct($id_product, $shop_product->id, $categoryID, $subcategoryID);
             $this->syncProduct($product, $id_product, $shop_product->id, false);
 
             $image = new Image();
             $image->id_product = $shop_product->id;
             $image->cover = true;
             if ($image->add()) {
-                if (!ImageHelpers::copyImg($shop_product->id, $image->id, $product['Image URL'], 'products', false)) {
+                if (!ImageHelpers::copyImg($shop_product->id, $image->id, $product['image_large'], 'products', false)) {
                     $image->delete();
                 }
             }
@@ -215,64 +246,75 @@ class BlackfireSyncService
 
     public function sync()
     {
-        $shop_products = DB::getInstance()->executeS('SELECT bfsp.*, p.*
+        $shop_products = DB::getInstance()->executeS('SELECT bfsp.*, p.*, bfssc.category_id
             FROM `'._DB_PREFIX_.'blackfiresync_products` bfsp
-            JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`');
+            JOIN `'._DB_PREFIX_.'product` p ON bfsp.`id_shop_product` = p.`id_product`
+            JOIN `'._DB_PREFIX_.'blackfiresync_subcategories` bfssc ON bfsp.subcategory_id = bfssc.id');
 
         $categories = [];
 
         foreach($shop_products as $sp)
         {
-            $categories[$sp['id_category']][] = $sp;
+            $categories[$sp['category_id']][$sp['subcategory_id']][] = $sp;
         }
         
-        foreach($categories as $subcategoryID => $shop_products)
+        foreach($categories as $categoryID => $subcategories)
         {
-            $products = $this->httpService->getProducts($subcategoryID);
-
-            foreach($shop_products as $shop_product)
+            foreach($subcategories as $subcategoryID => $shopProducts)
             {
-                $product = current(array_filter($products, fn($p) => $p['ID'] == $shop_product['id']));
+                $products = $this->httpService->getProducts($categoryID, $subcategoryID);
 
-                $this->syncProduct($product, $shop_product['id'], $shop_product['id_product'], $shop_product['ignore_deadline']);
+                foreach($shopProducts as $shopProduct)
+                {
+                    $product = current(array_filter($products, fn($p) => $p['id'] == $shopProduct['id']));
+
+                    $this->syncProduct($product, $shopProduct['id'], $shopProduct['id_product'], $shopProduct['ignore_deadline']);
+                }
             }
         }
     }
 
-    private function syncProduct($product, $id_product, $id_shop_product, $ignore_deadline)
+    public function syncProduct($product, $id_product, $id_shop_product, $ignore_deadline)
     {
         $update_data = [];
 
         if ($product) {
-            $release_date = DateTime::createFromFormat('d.m.Y', $product['Release Date']);
+            $release_date = DateTime::createFromFormat('d/m/Y', $product['release_date']);
             if ($release_date)
             {
                 $release_date = $release_date->format('Y-m-d');
                 $update_data['available_date'] = $release_date;
             }
 
-            $order_deadline = DateTime::createFromFormat('d.m.Y', $product['Order Deadline']);
-            
-            switch($product['Stock Level'])
+            $order_deadline = DateTime::createFromFormat('d/m/Y', $product['preorder_deadline']);
+        
+            switch($product['status'])
             {
-                case 'not on sale':
+                case 'Closed':
                     $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
                     break;
 
-                case 'in stock':
-                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
+                case 'Close-out':
+                case 'On Sale':
+                    if ($product['stock'] == 'in stock')
+                    {
+                        $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
+                    }
+                    else if ($product['stock'] == 'No stock')
+                    {
+                        $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
+                    }
+                    else
+                    {
+                        throw "dupa";
+                    }
                     break;
 
-                case 'low stock':
-                    $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
-                    break;
-
-                case 'for preorder':
+                case 'Preorder':
                     if ($ignore_deadline || !$order_deadline || $order_deadline > new DateTime("now"))
                         $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
                     else
                         $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_NOT_AVAILABLE;
-                    
                     break;
 
                 default:
@@ -303,9 +345,9 @@ class BlackfireSyncService
             'id' => $id_product,
             'id_shop_product' => $id_shop_product,
             'out_of_stock' => $update_data['out_of_stock'],
-            'release' => $product ? $product['Release Date'] : 'n/a',
-            'deadline' => $product ? $product['Order Deadline'] : 'n/a',
-            'stock_level' => $product ? $product['Stock Level'] : 'n/a',
+            'release' => $product ? $product['release_date'] : 'n/a',
+            'deadline' => $product ? $product['preorder_deadline'] : 'n/a',
+            'stock_level' => $product ? $product['stock'] : 'n/a',
             'product_result' => $product_result,
             'product_details_result' => $product_details_result,
             'stock_result' => $stock_result,
@@ -318,6 +360,41 @@ class BlackfireSyncService
         else
         {
             $this->logger->error('sync() ' . $id_product . ' ' . $id_shop_product, $log_array);
+        }
+    }
+
+    public function syncCategoriesLocally()
+    {
+        $categories = $this->httpService->getCategories();
+
+        foreach($categories as $category)
+        {
+            DB::getInstance()->insert('blackfiresync_categories', [
+                [
+                    'name' => $category['name'],
+                    'link' => $category['link']
+                ]
+            ], false, true, DB::ON_DUPLICATE_KEY);   
+        }
+
+        $local_categories = DB::getInstance()->executeS('SELECT c.*
+            FROM `'._DB_PREFIX_.'blackfiresync_categories` c');
+
+        foreach ($local_categories as $key => $cat)
+        {
+            $local_categories[$cat['link']] = $cat;
+        }
+
+        foreach ($categories as $category)
+        {
+            $category_id = $local_categories[$category['link']]['id'];
+
+            foreach ($category['subcategories'] as $subcategory)
+            {
+                $subcategory['category_id'] = $category_id;
+                DB::getInstance()->insert('blackfiresync_subcategories', $subcategory, false, true, DB::ON_DUPLICATE_KEY);
+            }
+
         }
     }
 
