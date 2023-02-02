@@ -260,12 +260,10 @@ class HttpService
             }
 
             $imageSmall = $productItem->find('.product-tile .hyp-thumbnail span.thumbnail noscript img')->getTag()->getAttribute('src')->getValue();
-            $imageLarge = str_replace('small', 'large', $imageSmall);
 
             $products[$productID . 'a'] = [
                 'id' => $productID,
                 'image_small' => $this->address . $imageSmall,
-                'image_large' => $this->address . $imageLarge,
                 'name' => trim($productItem->find('a.product-title span')->text()),
                 'ean' => $ean,
                 'ref' => $productNo,
@@ -295,11 +293,23 @@ class HttpService
         $dom = new Dom;
         $dom->loadStr($body);
 
+        $imageAttributes = $dom->find('img.custom-lazy')->getTag()->getAttributes();
+        
+        if (array_key_exists('data-zoom-image', $imageAttributes))
+        {
+            $image = $dom->find('img.custom-lazy')->getTag()->getAttribute('data-zoom-image')->getValue();
+        }
+        else
+        {
+            $image = $dom->find('img.custom-lazy')->getTag()->getAttribute('data-src')->getValue();
+        }
+        
         return [
             'name' => trim($dom->find('.font-product-title')->text()),
             'image' => $dom->find('.details-img .carousel-image-m-wrapper noscript img')->getTag()->getAttribute('src')->getValue(),
             'description' => $dom->find('.description.fr-view')->innerHtml(),
-            'manufacturer' => trim($dom->find('td[plaintext^=Manufacturer Code]')->parent->find('td.value')->text())
+            'manufacturer' => trim($dom->find('td[plaintext^=Manufacturer Code]')->parent->find('td.value')->text()),
+            'image' => $this->address . $image
         ];
     }
 }

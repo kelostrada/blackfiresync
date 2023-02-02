@@ -166,13 +166,13 @@ class BlackfireSyncService
         }
     }
 
-    public function newShopProduct($id_product, $categoryID, $subcategoryID)
+    public function newShopProduct($blackfireProductID, $categoryID, $subcategoryID)
     {
         $products = $this->httpService->getProducts($categoryID, $subcategoryID);
-        $product = current(array_filter($products, fn($p) => $p['id'] == $id_product));
-        $product_details = $this->httpService->getProduct($id_product);
+        $product = current(array_filter($products, fn($p) => $p['id'] == $blackfireProductID));
+        $product_details = $this->httpService->getProduct($blackfireProductID);
 
-        $price = floatval($product['price']) * 5 * 1.5 * 1.23;
+        $price = floatval($product['price']) * 5 * 1.3 * 1.23;
         $price = ceil( $price / 5 ) * 5 - 0.05;
         $price = strval(round($price / 1.23, 6));
         
@@ -204,14 +204,14 @@ class BlackfireSyncService
 
         if ($shop_product->add())
         {
-            $this->updateShopProduct($id_product, $shop_product->id, $categoryID, $subcategoryID);
-            $this->syncProduct($product, $id_product, $shop_product->id, false);
+            $result = $this->updateShopProduct($blackfireProductID, $shop_product->id, $categoryID, $subcategoryID);
+            $this->syncProduct($product, $blackfireProductID, $shop_product->id, false);
 
             $image = new Image();
             $image->id_product = $shop_product->id;
             $image->cover = true;
             if ($image->add()) {
-                if (!ImageHelpers::copyImg($shop_product->id, $image->id, $product['image_large'], 'products', false)) {
+                if (!ImageHelpers::copyImg($shop_product->id, $image->id, $product_details['image'], 'products', false)) {
                     $image->delete();
                 }
             }
@@ -274,7 +274,7 @@ class BlackfireSyncService
         }
     }
 
-    public function syncProduct($product, $id_product, $id_shop_product, $ignore_deadline)
+    public function syncProduct($product, $blackfireProductID, $id_shop_product, $ignore_deadline)
     {
         $update_data = [];
 
@@ -342,7 +342,7 @@ class BlackfireSyncService
         }
 
         $log_array = [
-            'id' => $id_product,
+            'id' => $blackfireProductID,
             'id_shop_product' => $id_shop_product,
             'out_of_stock' => $update_data['out_of_stock'],
             'release' => $product ? $product['release_date'] : 'n/a',
@@ -355,11 +355,11 @@ class BlackfireSyncService
 
         if ($product_result && $stock_result)
         {
-            $this->logger->info('sync() ' . $id_product . ' ' . $id_shop_product, $log_array);
+            $this->logger->info('sync() ' . $blackfireProductID . ' ' . $id_shop_product, $log_array);
         }
         else
         {
-            $this->logger->error('sync() ' . $id_product . ' ' . $id_shop_product, $log_array);
+            $this->logger->error('sync() ' . $blackfireProductID . ' ' . $id_shop_product, $log_array);
         }
     }
 
