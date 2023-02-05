@@ -28,7 +28,12 @@
 
 $(document).ready(function() {
 
-    $('#bf-categories-form').on('change', () => {
+    $('#bf-categories-form').on('change', (e) => {
+        if (e.target.id == 'bf-category')
+        {
+            $('#bf-subcategory option:selected').prop('selected', false);
+        }
+
         $('#bf-categories-form').submit();
     });
 
