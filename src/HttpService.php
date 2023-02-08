@@ -225,22 +225,13 @@ class HttpService
         foreach($productItems as $productItem)
         {
             $productID = $productItem->getTag()->getAttribute('data-id')->getValue();
+            // if ($productID != '93021') continue;
+            // dump($productID);
 
             $attributes = $productItem->find('div.product-attributes span.value');
+            $attributes = $this->parseAttributes($attributes);
 
-            $offset = 0;
-            $productNo = trim($attributes->offsetGet($offset++)->text());
-            $ean = trim($attributes->offsetGet($offset++)->text());
-
-            if (date_parse($ean)['error_count'] == 0)
-            {
-                $ean = '';
-                $offset--;
-            }
-
-            $releaseDate = trim($attributes->offsetGet($offset++)->text());
-            $preorderDeadline = trim($attributes->offsetGet($offset++)->text());
-            $status = trim($attributes->offsetGet($offset++)->text());
+            // dump($attributes);
             
             $price = trim($productItem->find('.lbl-price')->text());
             $price = str_replace('€ ', '', $price);
@@ -265,11 +256,11 @@ class HttpService
                 'id' => $productID,
                 'image_small' => $this->address . $imageSmall,
                 'name' => trim($productItem->find('a.product-title span')->text()),
-                'ean' => $ean,
-                'ref' => $productNo,
-                'release_date' => $releaseDate,
-                'preorder_deadline' => $preorderDeadline,
-                'status' => $status,
+                'ean' => $attributes['ean'],
+                'ref' => $attributes['ref'],
+                'release_date' => $attributes['release_date'],
+                'preorder_deadline' => $attributes['preorder_deadline'],
+                'status' => $attributes['status'],
                 'stock' => trim($productItem->find('.erpbase_stocklevel span')->text()),
                 'price' => $price,
                 'old_price' => $oldPrice,
@@ -278,6 +269,163 @@ class HttpService
         }
 
         return $products;
+    }
+
+    private function matchesRule($value, $rule)
+    {
+        switch ($rule) {
+            case 'any':
+                return true;
+            
+            case 'ean':
+                $expr = "/^[0-9]{8,14}$/";
+                return !!preg_match($expr, $value);
+
+            case 'date':
+                return date_parse_from_format('d/m/Y', $value)['error_count'] == 0;
+
+            case 'status':
+                return in_array($value, ['Closed', 'Close-out', 'On Sale', 'Preorder']);
+        }
+    }
+
+    private function parseAttributes($attributes)
+    {
+        $attributes = array_map(function($attr) {return trim($attr->text());}, $attributes->toArray());
+        // dump($attributes);
+        $rules = ['any', 'ean', 'date', 'date', 'status'];
+        $results = [];
+
+        $matches = array_map(function($rule) use ($attributes) {
+            return array_map(function($attribute) use ($rule) {
+                return $this->matchesRule($attribute, $rule);
+            }, $attributes);
+        }, $rules);
+
+        // dump($matches);
+
+        for($i=0; $i < count($rules); $i++)
+        {
+            // find rule with lowest amount of matching attributes
+            $minIndex = null;
+            $minAmount = 100000;
+
+            foreach($matches as $index => $match)
+            {
+                $amount = array_reduce($match, function($acc, $val) {
+                    if ($val === true) return $acc+1;
+                    else return $acc;
+                }, 0);
+
+                if ($amount < $minAmount)
+                {
+                    $minIndex = $index;
+                    $minAmount = $amount;
+                }
+            }
+
+            // dump($minIndex);
+            // dump($minAmount);
+
+            $foundMatching = false;
+
+            // find first value to the left that matches the rule
+            foreach ($matches[$minIndex] as $attributeIndex => $isMatching)
+            {
+                if ($isMatching === true)
+                {
+                    $results[$minIndex] = $attributes[$attributeIndex];
+                    unset($matches[$minIndex]);
+                    unset($attributes[$attributeIndex]);
+
+                    foreach ($matches as $matchIndex => $match)
+                    {
+                        $matches[$matchIndex][$attributeIndex] = false;
+                    }
+
+                    // count attributes before and after the found one
+                    $attributesBeforeCount = 0;
+                    $attributesAfterCount = 0;
+
+                    foreach ($attributes as $attrIndex => $attr)
+                    {
+                        if ($attributeIndex > $attrIndex) $attributesBeforeCount++;
+                        if ($attributeIndex < $attrIndex) $attributesAfterCount++;
+                    }
+
+                    // dump($attributesBeforeCount);
+                    // dump($attributesAfterCount);
+
+                    // count remaining matches before and after the found one
+                    $matchesBeforeCount = 0;
+                    $matchesAfterCount = 0;
+
+                    foreach ($matches as $matchIndex => $match)
+                    {
+                        $amount = array_reduce($match, function($acc, $val) {
+                            if ($val === true) return $acc+1;
+                            else return $acc;
+                        }, 0);
+
+                        if ($minIndex > $matchIndex && $amount > 0) $matchesBeforeCount++;
+                        if ($minIndex < $matchIndex && $amount > 0) $matchesAfterCount++;
+                    }
+
+
+                    // dump($matchesBeforeCount);
+                    // dump($matchesAfterCount);
+
+                    // if there are any matches before or after but there are no attributes we need to 
+                    // remove the matches
+
+                    if ($matchesBeforeCount > 0 && $attributesBeforeCount == 0)
+                    {
+                        for ($matchIndex = 0; $matchIndex < count($matches); $matchIndex++)
+                        {
+                            if ($matchIndex >= $minIndex) continue;
+
+                            foreach($matches[$matchIndex] as $matchAttributeIndex => $matchValue)
+                            {
+                                $matches[$matchIndex][$matchAttributeIndex] = false;
+                            }
+                        }
+                    }
+
+                    if ($matchesAfterCount > 0 && $attributesAfterCount == 0)
+                    {
+                        for ($matchIndex = 0; $matchIndex < count($matches); $matchIndex++)
+                        {
+                            if ($matchIndex <= $minIndex) continue;
+
+                            foreach($matches[$matchIndex] as $matchAttributeIndex => $matchValue)
+                            {
+                                $matches[$matchIndex][$matchAttributeIndex] = false;
+                            }
+                        }
+                    }
+
+                    $foundMatching = true;
+                    break;
+                }
+            }
+
+            // if not found any matching values to the rules
+            if (!$foundMatching)
+            {
+                $results[$minIndex] = '';
+                unset($matches[$minIndex]);
+            }
+
+            // dump($matches);
+        }
+
+        return [
+            'ref' => $results[0],
+            'ean' => $results[1],
+            'release_date' => $results[2],
+            'preorder_deadline' => $results[3],
+            'status' => $results[4]
+        ];
     }
 
     public function getProduct($productID)
