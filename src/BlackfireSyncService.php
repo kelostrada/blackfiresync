@@ -296,7 +296,7 @@ class BlackfireSyncService
 
                 case 'Close-out':
                 case 'On Sale':
-                    if ($product['stock'] == 'in stock')
+                    if (in_array($product['stock'], ['in stock', 'low stock']))
                     {
                         $update_data['out_of_stock'] = OutOfStockType::OUT_OF_STOCK_AVAILABLE;
                     }
@@ -306,7 +306,10 @@ class BlackfireSyncService
                     }
                     else
                     {
-                        throw "dupa";
+                        dump("Error updating status");
+                        dump($product);
+                        dump($update_data);
+                        exit;
                     }
                     break;
 
