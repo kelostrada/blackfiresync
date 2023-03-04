@@ -225,13 +225,9 @@ class HttpService
         foreach($productItems as $productItem)
         {
             $productID = $productItem->getTag()->getAttribute('data-id')->getValue();
-            // if ($productID != '93021') continue;
-            // dump($productID);
 
             $attributes = $productItem->find('div.product-attributes span.value');
             $attributes = $this->parseAttributes($attributes);
-
-            // dump($attributes);
             
             $price = trim($productItem->find('.lbl-price')->text());
             $price = str_replace('€ ', '', $price);
@@ -292,7 +288,6 @@ class HttpService
     private function parseAttributes($attributes)
     {
         $attributes = array_map(function($attr) {return trim($attr->text());}, $attributes->toArray());
-        // dump($attributes);
         $rules = ['any', 'ean', 'date', 'date', 'status'];
         $results = [];
 
@@ -301,8 +296,6 @@ class HttpService
                 return $this->matchesRule($attribute, $rule);
             }, $attributes);
         }, $rules);
-
-        // dump($matches);
 
         for($i=0; $i < count($rules); $i++)
         {
@@ -323,9 +316,6 @@ class HttpService
                     $minAmount = $amount;
                 }
             }
-
-            // dump($minIndex);
-            // dump($minAmount);
 
             $foundMatching = false;
 
@@ -353,9 +343,6 @@ class HttpService
                         if ($attributeIndex < $attrIndex) $attributesAfterCount++;
                     }
 
-                    // dump($attributesBeforeCount);
-                    // dump($attributesAfterCount);
-
                     // count remaining matches before and after the found one
                     $matchesBeforeCount = 0;
                     $matchesAfterCount = 0;
@@ -371,20 +358,16 @@ class HttpService
                         if ($minIndex < $matchIndex && $amount > 0) $matchesAfterCount++;
                     }
 
-
-                    // dump($matchesBeforeCount);
-                    // dump($matchesAfterCount);
-
                     // if there are any matches before or after but there are no attributes we need to 
                     // remove the matches
 
                     if ($matchesBeforeCount > 0 && $attributesBeforeCount == 0)
                     {
-                        for ($matchIndex = 0; $matchIndex < count($matches); $matchIndex++)
+                        foreach($matches as $matchIndex => $match)
                         {
                             if ($matchIndex >= $minIndex) continue;
 
-                            foreach($matches[$matchIndex] as $matchAttributeIndex => $matchValue)
+                            foreach($match as $matchAttributeIndex => $matchValue)
                             {
                                 $matches[$matchIndex][$matchAttributeIndex] = false;
                             }
@@ -393,11 +376,11 @@ class HttpService
 
                     if ($matchesAfterCount > 0 && $attributesAfterCount == 0)
                     {
-                        for ($matchIndex = 0; $matchIndex < count($matches); $matchIndex++)
+                        foreach($matches as $matchIndex => $match)
                         {
                             if ($matchIndex <= $minIndex) continue;
 
-                            foreach($matches[$matchIndex] as $matchAttributeIndex => $matchValue)
+                            foreach($match as $matchAttributeIndex => $matchValue)
                             {
                                 $matches[$matchIndex][$matchAttributeIndex] = false;
                             }
@@ -415,8 +398,6 @@ class HttpService
                 $results[$minIndex] = '';
                 unset($matches[$minIndex]);
             }
-
-            // dump($matches);
         }
 
         return [
