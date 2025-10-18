@@ -432,11 +432,18 @@ class HttpService
         {
             $image = $dom->find('img.custom-lazy')->getTag()->getAttribute('data-src')->getValue();
         }
+
+
+        $descriptionElement = $dom->find('.description.fr-view');
+        $description = '';
+        if ($descriptionElement->count() > 0) {
+            $description = $descriptionElement->innerHtml();
+        }
         
         return [
             'name' => trim($dom->find('.font-product-title')->text()),
             'image' => $dom->find('.details-img .carousel-image-m-wrapper noscript img')->getTag()->getAttribute('src')->getValue(),
-            'description' => $dom->find('.description.fr-view')->innerHtml(),
+            'description' => $description,
             'manufacturer' => trim($dom->find('td[plaintext^=Manufacturer Code]')->parent->find('td.value')->text()),
             'image' => $this->address . $image
         ];

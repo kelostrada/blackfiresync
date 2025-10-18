@@ -76,7 +76,18 @@ class ImageHelpers {
 
         $orig_tmpfile = $tmpfile;
 
-        if (file_put_contents($tmpfile, file_get_contents($url))) {
+        // Use cURL with minimal headers - similar to working command line curl
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'curl/7.68.0'); // Simple curl user agent
+        $imageContent = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && $imageContent && file_put_contents($tmpfile, $imageContent)) {
             // Evaluate the memory required to resize the image: if it's too much, you can't resize it.
             if (!ImageManager::checkImageMemoryLimit($tmpfile)) {
                 @unlink($tmpfile);
@@ -97,7 +108,7 @@ class ImageHelpers {
                 imagejpeg($bg, $tmpfile, $quality);
                 imagedestroy($bg); 
             } 
-            else if ($imginfo['extension'] != 'jpg')
+            else if ($imginfo['extension'] != 'jpg' && $imginfo['extension'] != 'jpeg')
             {
                 @unlink($tmpfile);
                 return false;
