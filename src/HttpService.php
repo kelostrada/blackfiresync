@@ -106,15 +106,22 @@ class HttpService
             $requestVerificationToken = $tokenInput->getTag()->getAttribute('value')->getValue();
         }
 
+        // Prepare form data for universal compatibility
+        $formData = http_build_query([
+            "UserName" => $user,
+            "Password" => $password,
+            "RememberMe" => "true",
+            "__RequestVerificationToken" => $requestVerificationToken,
+        ]);
+        
+        $headers = $this->getChromeHeaders(true, 'https://www.blackfire.eu/en-gb/profile/login');
+        $headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        $headers['Content-Length'] = strlen($formData);
+        
         $response = $this->makeRequest('post', $this->address . '/en-gb/profile/login', [
-            'form_params' => [
-                "UserName" => $user,
-                "Password" => $password,
-                "RememberMe" => "true",
-                "__RequestVerificationToken" => $requestVerificationToken,
-            ],
+            'body' => $formData,
             'cookies' => $this->cookieJar,
-            'headers' => $this->getChromeHeaders(true, 'https://www.blackfire.eu/en-gb/profile/login')
+            'headers' => $headers
         ]);
 
         $cookies = $this->cookieJar->toArray();
