@@ -42,6 +42,20 @@ class HttpService
         return $headers;
     }
 
+    private function makeRequest($method, $url, $options = [])
+    {
+        try {
+            return $this->client->$method($url, $options);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            // Handle HTTP errors manually for better compatibility
+            $response = $e->getResponse();
+            if (!$response) {
+                throw new \Exception('HTTP request failed: ' . $e->getMessage());
+            }
+            return $response;
+        }
+    }
+
     public function __construct($user, $password)
     {
         $this->client = new Client();
@@ -75,9 +89,8 @@ class HttpService
     {
         $this->cookieJar = new CookieJar();
 
-        $loginPageResponse = $this->client->get($this->address . '/en-gb/profile/login', [
+        $loginPageResponse = $this->makeRequest('get', $this->address . '/en-gb/profile/login', [
             'cookies' => $this->cookieJar,
-            'http_errors' => false,
             'headers' => $this->getChromeHeaders()
         ]);
 
@@ -93,7 +106,7 @@ class HttpService
             $requestVerificationToken = $tokenInput->getTag()->getAttribute('value')->getValue();
         }
 
-        $response = $this->client->post($this->address . '/en-gb/profile/login', [
+        $response = $this->makeRequest('post', $this->address . '/en-gb/profile/login', [
             'form_params' => [
                 "UserName" => $user,
                 "Password" => $password,
@@ -101,7 +114,6 @@ class HttpService
                 "__RequestVerificationToken" => $requestVerificationToken,
             ],
             'cookies' => $this->cookieJar,
-            'http_errors' => false,
             'headers' => $this->getChromeHeaders(true, 'https://www.blackfire.eu/en-gb/profile/login')
         ]);
 
@@ -130,7 +142,7 @@ class HttpService
 
     public function getAccountInfo()
     {
-        $response = $this->client->get($this->address . '/en-gb/profile', [
+        $response = $this->makeRequest('get', $this->address . '/en-gb/profile', [
             'cookies' => $this->cookieJar,
             'headers' => $this->getChromeHeaders()
         ]);
@@ -151,7 +163,7 @@ class HttpService
     public function getCategories()
     {
         // use about-us page, as home page loads the slowest
-        $response = $this->client->get($this->address . '/en-gb/about-us', [
+        $response = $this->makeRequest('get', $this->address . '/en-gb/about-us', [
             'cookies' => $this->cookieJar,
             'headers' => $this->getChromeHeaders()
         ]);
@@ -180,7 +192,7 @@ class HttpService
                 "subcategories" => []
             ];
 
-            $response = $this->client->get($this->address . $url, [
+            $response = $this->makeRequest('get', $this->address . $url, [
                 'cookies' => $this->cookieJar,
                 'headers' => $this->getChromeHeaders()
             ]);
@@ -250,7 +262,7 @@ class HttpService
         $headers = $this->getChromeHeaders();
         $headers['x-requested-with'] = 'XMLHttpRequest';
         
-        $response = $this->client->get($this->address . $categoryLink . '?page=' . $page, [
+        $response = $this->makeRequest('get', $this->address . $categoryLink . '?page=' . $page, [
             'cookies' => $this->cookieJar,
             'headers' => $headers
         ]);
@@ -463,7 +475,7 @@ class HttpService
     {
         if (!$productID) return false;
 
-        $response = $this->client->get($this->address . '/en-gb/' . $productID, [
+        $response = $this->makeRequest('get', $this->address . '/en-gb/' . $productID, [
             'cookies' => $this->cookieJar,
             'headers' => $this->getChromeHeaders()
         ]);
