@@ -27,9 +27,25 @@ $sql = array();
 
 $sql[_DB_PREFIX_ . 'blackfiresync'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync` (
     `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `cookie` char(32) NOT NULL,
+    `cookie` TEXT NOT NULL,
     `expires` BIGINT(20) UNSIGNED NOT NULL,
     PRIMARY KEY  (`id`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+$sql[_DB_PREFIX_ . 'blackfiresync_categories'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync_categories` (
+    `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` TEXT,
+    `link` VARCHAR(1000) NOT NULL UNIQUE,
+    PRIMARY KEY  (`id`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+$sql[_DB_PREFIX_ . 'blackfiresync_subcategories'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync_subcategories` (
+    `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` TEXT,
+    `link` VARCHAR(1000) NOT NULL UNIQUE,
+    `category_id` int(11) UNSIGNED NOT NULL,
+    PRIMARY KEY  (`id`),
+    FOREIGN KEY (`category_id`) REFERENCES `' . _DB_PREFIX_ . 'blackfiresync_categories`(`id`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 $sql[_DB_PREFIX_ . 'blackfiresync_products'] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'blackfiresync_products` (
@@ -37,8 +53,10 @@ $sql[_DB_PREFIX_ . 'blackfiresync_products'] = 'CREATE TABLE IF NOT EXISTS `' . 
     `id_shop_product` int(10) UNSIGNED NOT NULL UNIQUE,
     `id_category` int(10) UNSIGNED NOT NULL,
     `ignore_deadline` BOOL NOT NULL DEFAULT false,
+    `subcategory_id` int(11) UNSIGNED,
     PRIMARY KEY  (`id`),
-    FOREIGN KEY (`id_shop_product`) REFERENCES ' . _DB_PREFIX_ . 'product(`id_product`)
+    FOREIGN KEY (`id_shop_product`) REFERENCES ' . _DB_PREFIX_ . 'product(`id_product`),
+    FOREIGN KEY (`subcategory_id`) REFERENCES `' . _DB_PREFIX_ . 'blackfiresync_subcategories`(`id`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 return $sql;
