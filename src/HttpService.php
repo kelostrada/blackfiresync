@@ -17,6 +17,31 @@ class HttpService
     private $cookieJar;
     private $address = 'https://www.blackfire.eu';
 
+    private function getChromeHeaders($isPost = false, $referer = null)
+    {
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'en-US,en;q=0.9',
+            'Accept-Encoding' => 'gzip, deflate, br',
+            'DNT' => '1',
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => $isPost ? 'same-origin' : 'none',
+            'Sec-Fetch-User' => '?1',
+            'Origin' => 'https://www.blackfire.eu',
+            'Referer' => $referer ?? 'https://www.blackfire.eu/en-gb/profile/'
+        ];
+
+        if (!$isPost) {
+            $headers['Cache-Control'] = 'max-age=0';
+        }
+
+        return $headers;
+    }
+
     public function __construct($user, $password)
     {
         $this->client = new Client();
@@ -50,13 +75,34 @@ class HttpService
     {
         $this->cookieJar = new CookieJar();
 
+        $loginPageResponse = $this->client->get($this->address . '/en-gb/profile/login', [
+            'cookies' => $this->cookieJar,
+            'http_errors' => false,
+            'headers' => $this->getChromeHeaders()
+        ]);
+
+        $loginPageBody = $loginPageResponse->getBody()->getContents();
+        
+        $dom = new Dom;
+        $dom->loadStr($loginPageBody);
+        
+        $tokenInput = $dom->find('input[name="__RequestVerificationToken"]');
+        $requestVerificationToken = '';
+        
+        if ($tokenInput->count() > 0) {
+            $requestVerificationToken = $tokenInput->getTag()->getAttribute('value')->getValue();
+        }
+
         $response = $this->client->post($this->address . '/en-gb/profile/login', [
-            'body' => [
+            'form_params' => [
                 "UserName" => $user,
                 "Password" => $password,
                 "RememberMe" => "true",
+                "__RequestVerificationToken" => $requestVerificationToken,
             ],
-            'cookies' => $this->cookieJar
+            'cookies' => $this->cookieJar,
+            'http_errors' => false,
+            'headers' => $this->getChromeHeaders(true, 'https://www.blackfire.eu/en-gb/profile/login')
         ]);
 
         $cookies = $this->cookieJar->toArray();
@@ -85,7 +131,8 @@ class HttpService
     public function getAccountInfo()
     {
         $response = $this->client->get($this->address . '/en-gb/profile', [
-            'cookies' => $this->cookieJar
+            'cookies' => $this->cookieJar,
+            'headers' => $this->getChromeHeaders()
         ]);
 
         $body = (string) $response->getBody();
@@ -105,7 +152,8 @@ class HttpService
     {
         // use about-us page, as home page loads the slowest
         $response = $this->client->get($this->address . '/en-gb/about-us', [
-            'cookies' => $this->cookieJar
+            'cookies' => $this->cookieJar,
+            'headers' => $this->getChromeHeaders()
         ]);
 
         $body = (string) $response->getBody();
@@ -133,7 +181,8 @@ class HttpService
             ];
 
             $response = $this->client->get($this->address . $url, [
-                'cookies' => $this->cookieJar
+                'cookies' => $this->cookieJar,
+                'headers' => $this->getChromeHeaders()
             ]);
 
             $body = (string) $response->getBody();
@@ -198,11 +247,12 @@ class HttpService
 
     private function fetchProductsPage($categoryLink, $page)
     {
+        $headers = $this->getChromeHeaders();
+        $headers['x-requested-with'] = 'XMLHttpRequest';
+        
         $response = $this->client->get($this->address . $categoryLink . '?page=' . $page, [
             'cookies' => $this->cookieJar,
-            'headers' => [
-                'x-requested-with' => 'XMLHttpRequest'
-            ]
+            'headers' => $headers
         ]);
 
         $body = (string) $response->getBody();
@@ -414,7 +464,8 @@ class HttpService
         if (!$productID) return false;
 
         $response = $this->client->get($this->address . '/en-gb/' . $productID, [
-            'cookies' => $this->cookieJar
+            'cookies' => $this->cookieJar,
+            'headers' => $this->getChromeHeaders()
         ]);
 
         $body = (string) $response->getBody();
