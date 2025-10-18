@@ -25,6 +25,7 @@ class AdminBlackfireSyncController extends ModuleAdminController
         if ($this->action == "x") $this->deleteShopProduct();
         if ($this->action == "new") $this->newShopProduct();
         if ($this->action == "force") $this->changeIgnoreDeadline();
+        if ($this->action == "sync_categories") $this->syncCategories();
     }
 
     public function initContent()
@@ -78,5 +79,15 @@ class AdminBlackfireSyncController extends ModuleAdminController
         $id_product = Tools::getValue("id_product");
         $ignore_deadline = Tools::getValue("ignore_deadline");
         BlackfireSyncService::changeIgnoreDeadline($id_product, $ignore_deadline);
+    }
+
+    protected function syncCategories()
+    {
+        try {
+            BlackfireSyncService::syncCategories();
+            $this->confirmations[] = 'Categories synced successfully!';
+        } catch (Exception $e) {
+            $this->errors[] = 'Error syncing categories: ' . $e->getMessage();
+        }
     }
 }

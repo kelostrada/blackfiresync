@@ -6,6 +6,17 @@
     <div class="panel-body" id="blackfire-sync-categories">
         <div class="container">
             <strong>Account:</strong> {$account["email"]} | {$account["name"]} 
+            
+            <div class="pull-right">
+                <form class="form form-inline" role="form" method="POST" action="">
+                    <input type="hidden" name="controller" value="AdminBlackfireSync" />
+                    <input type="hidden" name="token" value="{Tools::getAdminTokenLite('AdminBlackfireSync')}" />
+                    <input type="hidden" name="action" value="sync_categories" />
+                    <button type="submit" class="btn btn-info">
+                        <i class="icon-refresh"></i> Sync Categories
+                    </button>
+                </form>
+            </div>
 
             <form class="form form-inline" role="form" id="bf-categories-form" type="GET">
                 <input type="hidden" name="controller" value="AdminBlackfireSync" />
